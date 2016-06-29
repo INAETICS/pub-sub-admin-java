@@ -1,0 +1,2 @@
+Private-Package: org.inaetics.pubsub.example.dependencymanager
+Bundle-Activator: org.inaetics.pubsub.example.dependencymanager.Activator

@@ -1,0 +1,5 @@
+Private-Package: \
+	org.inaetics.pubsub.impl.pubsubadmin.kafka,\
+	org.inaetics.pubsub.impl.utils
+Bundle-Activator: org.inaetics.pubsub.impl.pubsubadmin.kafka.Activator
+Bundle-Version: 0.1

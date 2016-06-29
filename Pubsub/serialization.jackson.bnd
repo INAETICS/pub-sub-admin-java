@@ -1,0 +1,6 @@
+Private-Package: org.inaetics.pubsub.impl.serialization.jackson
+	
+DynamicImport-Package: *
+
+Bundle-Activator: org.inaetics.pubsub.impl.serialization.jackson.Activator
+Bundle-Version: 0.1

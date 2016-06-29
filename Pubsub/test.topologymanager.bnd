@@ -1,0 +1,2 @@
+Private-Package: test.org.inaetics.pubsub.impl.topologymanager
+Bundle-Activator: test.org.inaetics.pubsub.impl.topologymanager.TestActivator

@@ -1,0 +1,20 @@
+-buildpath: \
+	osgi.cmpn;version='[4.2,5)',\
+	osgi.core;version='[4.2,5)',\
+	org.apache.felix.dependencymanager;version='[4,5)',\
+	javax.servlet;version='[2.5,3.1)',\
+	javax.ws.rs.jsr311-api;version=1.1.1,\
+	org.amdatu.web.rest.doc;version=latest,\
+	Pubsub.pubsub.api;version=latest,\
+	com.fasterxml.jackson.module.jackson-module-afterburner,\
+	com.fasterxml.jackson.core.jackson-core,\
+	com.fasterxml.jackson.core.jackson-annotations,\
+	com.fasterxml.jackson.core.jackson-databind,\
+	org.apache.commons.logging,\
+	org.apache.httpcomponents.httpcore,\
+	org.apache.httpcomponents.httpclient,\
+	org.amdatu.web.rest.jaxrs
+-testpath: \
+	${junit}
+
+-sub: *.bnd

@@ -1,0 +1,5 @@
+Private-Package: \
+	org.inaetics.pubsub.impl.topologymanager,\
+	org.inaetics.pubsub.impl.utils
+Bundle-Activator: org.inaetics.pubsub.impl.topologymanager.Activator
+Bundle-Version: 0.1

@@ -1,0 +1,24 @@
+-buildpath: \
+	osgi.annotation;version=latest,\
+	osgi.core;version=latest,\
+	osgi.cmpn;version=latest,\
+	com.fasterxml.jackson.core.jackson-annotations,\
+	com.fasterxml.jackson.core.jackson-core,\
+	com.fasterxml.jackson.core.jackson-databind,\
+	com.fasterxml.jackson.module.jackson-module-afterburner,\
+	org.amdatu.kafka,\
+	org.apache.commons.codec,\
+	org.apache.commons.logging,\
+	org.apache.felix.dependencymanager;version=latest,\
+	org.apache.httpcomponents.httpclient,\
+	org.apache.httpcomponents.httpcore,\
+	slf4j.api,\
+	slf4j.simple,\
+	biz.aQute.junit,\
+	org.mockito.mockito-core;version=1.10
+
+-testpath: \
+	junit; version=4,\
+	hamcrest-core; version=1.3
+
+-sub: *.bnd

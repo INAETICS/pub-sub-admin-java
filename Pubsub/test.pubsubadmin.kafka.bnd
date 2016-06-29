@@ -1,0 +1,2 @@
+Private-Package: test.org.inaetics.impl.pubsubadmin.kafka
+Bundle-Activator: test.org.inaetics.impl.pubsubadmin.kafka.TestActivator

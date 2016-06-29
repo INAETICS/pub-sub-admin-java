@@ -1,0 +1,2 @@
+Private-Package: test.org.inaetics.pubsub.impl.discovery.etcd
+Bundle-Activator: test.org.inaetics.pubsub.impl.discovery.etcd.TestActivator

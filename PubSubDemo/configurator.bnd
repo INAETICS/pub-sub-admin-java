@@ -1,0 +1,8 @@
+Private-Package: org.inaetics.pubsub.demo.config
+Bundle-Activator: org.inaetics.pubsub.demo.config.Activator
+Bundle-Version: 1.0.0
+Include-Resource: resource=resource
+X-Web-Resource-Version: 1.1
+X-Web-Resource: /demo;/resource
+X-Web-Resource-Default-Page: index.html
+Export-Package: org.inaetics.pubsub.demo.config

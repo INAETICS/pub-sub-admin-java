@@ -1,0 +1,56 @@
+/* Copyright (C) 2015 - INAETICS */
+@media screen {
+	h1>small {
+		padding-left: 25px;
+	}
+	.breakout {
+		width: 100%;
+	}
+	.colors, .colors div {
+		height: 5px;
+	}
+	.colors div {
+		float: left;
+		width: 7.69%;
+	}
+	.c1 {
+		background-color: #c8541a;
+	}
+	.c2 {
+		background-color: #f26622;
+	}
+	.c3 {
+		background-color: #f57d20;
+	}
+	.c4 {
+		background-color: #f89b1c;
+	}
+	.c5 {
+		background-color: #fdb415;
+	}
+	.c6 {
+		background-color: #fecd08;
+	}
+	.c7 {
+		background-color: #dfd41e;
+	}
+	.c8 {
+		background-color: #acc037;
+	}
+	.c9 {
+		background-color: #81a33e;
+	}
+	.c10 {
+		background-color: #5e853b;
+	}
+	.c11 {
+		background-color: #015880;
+	}
+	.c12 {
+		background-color: #006ea1;
+	}
+	.c13, .colors {
+		background-color: #0092d4;
+	}
+}
+/* EOF */
