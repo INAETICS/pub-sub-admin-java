@@ -1,0 +1,10 @@
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/discovery/DiscoveryManager.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/discovery/package-info.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/pubsubadmin/TopicReceiver.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/serialization/package-info.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/pubsubadmin/TopicSender.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/pubsubadmin/PubSubAdmin.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/serialization/MultipartContainer.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/serialization/Serializer.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/pubsubadmin/TopicHandler.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.psa.spi/src/main/java/org/inaetics/pubsub/api/pubsubadmin/package-info.java

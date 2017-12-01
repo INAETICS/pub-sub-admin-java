@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.inaetics.pubsub</groupId>
+    <artifactId>parent</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>INAETICS PubSub parent</name>
+
+    <properties>
+        <manifest-file>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifest-file>
+	<maven.compiler.source>1.8</maven.compiler.source>
+	<maven.compiler.target>1.8</maven.compiler.target>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestFile>${manifest-file}</manifestFile>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>biz.aQute.bnd</groupId>
+                <artifactId>bnd-maven-plugin</artifactId>
+                <configuration>
+                    <manifestPath>${manifest-file}</manifestPath>
+                    <bnd><![CDATA[
+#Always export packages with a @Version annotation
+-exportcontents: ${packages;ANNOTATED;org.osgi.annotation.versioning.Version}
+]]>
+                    </bnd>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>bnd-process</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+
+    <modules>
+        <module>org.inaetics.pubsub.api</module>
+        <module>org.inaetics.pubsub.spi</module>
+	<module>org.inaetics.pubsub.topologymanager</module>
+	<module>org.inaetics.pubsub.discovery.etcd</module>
+	<module>org.inaetics.pubsub.psa.kafka</module>
+	<module>org.inaetics.pubsub.serialization.json</module>
+    </modules>
+
+</project>

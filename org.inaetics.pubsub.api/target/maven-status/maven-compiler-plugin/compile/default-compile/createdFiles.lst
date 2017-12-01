@@ -1,0 +1,5 @@
+org/inaetics/pubsub/api/pubsub/Subscriber.class
+org/inaetics/pubsub/api/pubsub/Subscriber$MultipartCallbacks.class
+org/inaetics/pubsub/api/pubsub/Publisher.class
+org/inaetics/pubsub/api/pubsub/MultipartException.class
+org/inaetics/pubsub/api/pubsub/package-info.class

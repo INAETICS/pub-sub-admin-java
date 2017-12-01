@@ -1,0 +1,4 @@
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.discovery.etcd/src/main/java/org/inaetics/pubsub/impl/discovery/etcd/Activator.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.discovery.etcd/src/main/java/org/inaetics/pubsub/impl/discovery/etcd/EtcdWrapper.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.discovery.etcd/src/main/java/org/inaetics/pubsub/impl/discovery/etcd/EtcdCallback.java
+/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.discovery.etcd/src/main/java/org/inaetics/pubsub/impl/discovery/etcd/EtcdDiscoveryManager.java
