@@ -1,8 +1,0 @@
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaTopicReceiver.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaConstants.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaPublisher.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaSubscriber.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaProducerFactory.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaTopicSender.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/Activator.java
-/home/pnoltes/workspaces/2017/inaetics/pub-sub-admin-java/org.inaetics.pubsub.psa.kafka/src/main/java/org/inaetics/pubsub/impl/pubsubadmin/kafka/KafkaPubSubAdmin.java
