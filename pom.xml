@@ -51,10 +51,11 @@
     <modules>
         <module>org.inaetics.pubsub.api</module>
         <module>org.inaetics.pubsub.spi</module>
-	<module>org.inaetics.pubsub.topologymanager</module>
-	<module>org.inaetics.pubsub.discovery.etcd</module>
-	<module>org.inaetics.pubsub.psa.kafka</module>
-	<module>org.inaetics.pubsub.serialization.json</module>
+        <module>org.inaetics.pubsub.topologymanager</module>
+        <module>org.inaetics.pubsub.discovery.etcd</module>
+        <!--<module>org.inaetics.pubsub.psa.kafka</module>-->
+        <module>org.inaetics.pubsub.psa.zeromq</module>
+        <module>org.inaetics.pubsub.serialization.json</module>
     </modules>
 
 </project>

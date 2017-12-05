@@ -11,29 +11,8 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.api.pubsub;
+package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
-public class MultipartException extends Exception {
-
-  public MultipartException() {
-    super();
-  }
-
-  public MultipartException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
-  }
-
-  public MultipartException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public MultipartException(String message) {
-    super(message);
-  }
-
-  public MultipartException(Throwable cause) {
-    super(cause);
-  }
-  
+public class ZmqConstants {
+  public static final String ZMQ = "zmq";
 }

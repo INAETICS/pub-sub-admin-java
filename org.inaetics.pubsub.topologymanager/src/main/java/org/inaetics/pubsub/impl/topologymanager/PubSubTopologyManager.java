@@ -104,7 +104,7 @@ public class PubSubTopologyManager
                   }
 
                   for (Map<String, String> subscriber : subscriberEndpoints) {
-                    sender.addSubcriberEndpoint(subscriber);
+                    sender.addSubscriberEndpoint(subscriber);
                   }
 
                   sender.open();
@@ -257,7 +257,7 @@ public class PubSubTopologyManager
         }
 
         for (Map<String, String> subscriber : subscriberEndpoints) {
-          receiver.addSubcriberEndpoint(subscriber);
+          receiver.addSubscriberEndpoint(subscriber);
         }
 
         receiver.open();
@@ -406,10 +406,10 @@ public class PubSubTopologyManager
     subscriberEndpoints.add(endpoint);
 
     for (TopicHandler handler : senders.values()) {
-      handler.addSubcriberEndpoint(endpoint);
+      handler.addSubscriberEndpoint(endpoint);
     }
     for (TopicHandler handler : receivers.values()) {
-      handler.addSubcriberEndpoint(endpoint);
+      handler.addSubscriberEndpoint(endpoint);
     }
   }
 
@@ -439,7 +439,7 @@ public class PubSubTopologyManager
       handler.addPublisherEndpoint(endpoint);
     }
     for (Map<String, String> endpoint : subscriberEndpoints) {
-      handler.addSubcriberEndpoint(endpoint);
+      handler.addSubscriberEndpoint(endpoint);
     }
   }
 

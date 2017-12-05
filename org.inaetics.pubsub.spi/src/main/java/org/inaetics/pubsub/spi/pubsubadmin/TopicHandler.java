@@ -42,14 +42,14 @@ public abstract class TopicHandler {
   /**
    * Closes the Handler. This should only be done if the endpoint info is removed from discovery.
    * When closing a TopicSender should unregister its Publish (factory) interface and a TopicReceiver should
-   * stop tracking Subcriber interfaces.
+   * stop tracking Subscriber interfaces.
    */
   public abstract void close();
   
   /**
    * Add a subscriber endpoint. If needed the Sender can connect to the endpoint.
    */
-  public abstract void addSubcriberEndpoint(Map<String, String> endpoint);
+  public abstract void addSubscriberEndpoint(Map<String, String> endpoint);
   
   /**
    * Removes a subscriber endpoint. If needed the Sender can disconnect from the endpoint

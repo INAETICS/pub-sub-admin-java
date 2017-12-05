@@ -11,29 +11,20 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.api.pubsub;
+package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
-public class MultipartException extends Exception {
+import java.util.Map;
 
-  public MultipartException() {
-    super();
+public class ZmqProducerFactory {
+
+  public KafkaProducer<byte[], byte[]> getKafkaProducer(Map<String, String> properties, ZmqTopicSender user) {
+      //TODO
+
   }
 
-  public MultipartException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
+  public void removeProducer(KafkaProducer<byte[], byte[]> producer, ZmqTopicSender user) {
+      //TODO
+
   }
 
-  public MultipartException(String message, Throwable cause) {
-    super(message, cause);
-  }
-
-  public MultipartException(String message) {
-    super(message);
-  }
-
-  public MultipartException(Throwable cause) {
-    super(cause);
-  }
-  
 }

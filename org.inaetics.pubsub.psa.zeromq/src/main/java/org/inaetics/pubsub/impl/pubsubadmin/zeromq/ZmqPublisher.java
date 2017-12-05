@@ -11,29 +11,29 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.api.pubsub;
+package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
-public class MultipartException extends Exception {
+import org.inaetics.pubsub.api.pubsub.MultipartException;
+import org.inaetics.pubsub.spi.serialization.Serializer;
 
-  public MultipartException() {
-    super();
+public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
+
+  public ZmqPublisher(String topic, KafkaProducer<byte[], byte[]> producer, Serializer serializer) {
+
   }
 
-  public MultipartException(String message, Throwable cause, boolean enableSuppression,
-      boolean writableStackTrace) {
-    super(message, cause, enableSuppression, writableStackTrace);
+  @Override
+  public void send(Object msg) {
+
   }
 
-  public MultipartException(String message, Throwable cause) {
-    super(message, cause);
+  @Override
+  public synchronized void sendMultipart(Object msg, int flags) throws MultipartException {
+
   }
 
-  public MultipartException(String message) {
-    super(message);
-  }
+//  public KafkaProducer<byte[], byte[]> getProducer() {
+//    return producer;
+//  }
 
-  public MultipartException(Throwable cause) {
-    super(cause);
-  }
-  
 }

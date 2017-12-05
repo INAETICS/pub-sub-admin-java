@@ -120,7 +120,7 @@ public class KafkaTopicSender extends TopicSender {
   }
 
   @Override
-  public void addSubcriberEndpoint(Map<String, String> endpoint) {
+  public void addSubscriberEndpoint(Map<String, String> endpoint) {
     // Not used for Kafka
   }
 
