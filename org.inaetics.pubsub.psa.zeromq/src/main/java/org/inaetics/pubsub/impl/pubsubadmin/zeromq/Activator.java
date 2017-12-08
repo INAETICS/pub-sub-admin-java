@@ -50,7 +50,7 @@ public class Activator extends DependencyActivatorBase {
   }
 
   @Override
-  public void destroy(BundleContext arg0, DependencyManager arg1) throws Exception {
+  public void destroy(BundleContext bundleContext, DependencyManager manager) throws Exception {
     // TODO Auto-generated method stub
     
   }

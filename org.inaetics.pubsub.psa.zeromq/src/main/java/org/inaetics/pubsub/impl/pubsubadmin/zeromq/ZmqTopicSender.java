@@ -15,25 +15,57 @@ package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicSender;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.FrameworkUtil;
-import org.osgi.framework.ServiceRegistration;
+import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.osgi.framework.*;
+import org.osgi.util.tracker.ServiceTracker;
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class ZmqTopicSender extends TopicSender {
 
-  private BundleContext bundleContext =
-          FrameworkUtil.getBundle(ZmqTopicSender.class).getBundleContext();
+  private BundleContext bundleContext = FrameworkUtil.getBundle(ZmqTopicSender.class).getBundleContext();
   private final String topic;
 
-  public ZmqTopicSender(ZmqProducerFactory factory, Map<String, String> zmqProperties, String topic, String serializer) {
+  private ServiceTracker tracker;
+  private final Serializer serializer;
+  private final String serializerString;
+
+  private final Map<Bundle, Publisher> publishers = new HashMap<>();
+
+  private ZContext zmqContext;
+  private ZMQ.Socket zmqSocket;
+
+  public ZmqTopicSender(ZContext zmqContext, Map<String, String> zmqProperties, String topic, String serializer) {
 
     super();
     this.topic = topic;
-    //TODO
 
+    Filter filter = null;
+
+    try {
+      if (serializer != null) {
+        filter = bundleContext.createFilter("(&(objectClass=" + Serializer.class.getName() + ")"
+                + "(" + Serializer.SERIALIZER + "=" + serializer + "))");
+      } else {
+        filter = bundleContext.createFilter("(objectClass=" + Serializer.class.getName() + ")");
+      }
+
+    } catch (InvalidSyntaxException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    tracker = new ServiceTracker<>(bundleContext, filter, null);
+    tracker.open();
+
+    ServiceReference<Serializer> serviceReference = tracker.getServiceReference();
+    this.serializer = (Serializer) bundleContext.getService(serviceReference);
+    this.serializerString = (String) serviceReference.getProperty(Serializer.SERIALIZER);
+
+    this.zmqContext = zmqContext;
+    this.zmqSocket = zmqContext.createSocket(ZMQ.PUB);
   }
 
   @Override
@@ -78,7 +110,8 @@ public class ZmqTopicSender extends TopicSender {
 
   @Override
   public boolean isActive() {
-    //TODO
+    //TODO: x
+    return !publishers.isEmpty();
   }
 
   @Override

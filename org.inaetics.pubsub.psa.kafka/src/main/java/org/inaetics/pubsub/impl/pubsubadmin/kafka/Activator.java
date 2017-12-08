@@ -28,19 +28,19 @@ public class Activator extends DependencyActivatorBase {
   @Override
   public void init(BundleContext bundleContext, DependencyManager manager) {
     try {
+
       String[] objectClass = new String[] {PubSubAdmin.class.getName()};
-    Dictionary<String, Object> properties = new Hashtable<String, Object>();
-    properties.put(Constants.SERVICE_PID, KafkaPubSubAdmin.SERVICE_PID);
-    
-    
-    manager.add(
-        createComponent()
-          .setInterface(objectClass, properties)
-          .setImplementation(KafkaPubSubAdmin.class)
-          .add(createServiceDependency()
-              .setService(LogService.class)
-              .setRequired(false))
-          .add(createConfigurationDependency().setPid(KafkaPubSubAdmin.SERVICE_PID))
+      Dictionary<String, Object> properties = new Hashtable<String, Object>();
+      properties.put(Constants.SERVICE_PID, KafkaPubSubAdmin.SERVICE_PID);
+
+      manager.add(
+          createComponent()
+            .setInterface(objectClass, properties)
+            .setImplementation(KafkaPubSubAdmin.class)
+            .add(createServiceDependency()
+                .setService(LogService.class)
+                .setRequired(false))
+            .add(createConfigurationDependency().setPid(KafkaPubSubAdmin.SERVICE_PID))
           );
     } catch (Exception e) {
       e.printStackTrace();

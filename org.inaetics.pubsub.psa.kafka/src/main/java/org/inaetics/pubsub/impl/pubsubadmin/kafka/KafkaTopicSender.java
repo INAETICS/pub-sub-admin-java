@@ -38,7 +38,7 @@ public class KafkaTopicSender extends TopicSender {
 
   private final String topic;
   private final String kafkaTopic;
-  private final String serializerString;;
+  private final String serializerString;
   private final KafkaProducerFactory factory;
   private KafkaProducer<byte[], byte[]> producer;
   private final Serializer serializer;

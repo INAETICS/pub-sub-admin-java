@@ -21,8 +21,6 @@ import java.util.Set;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 
-import com.sun.org.apache.regexp.internal.recompile;
-
 public class KafkaProducerFactory {
   private Map<Map<String, String>, KafkaProducer<byte[], byte[]>> producerPropertiesMap = new HashMap<>();
   private Map<KafkaProducer<byte[], byte[]>, Set<KafkaTopicSender>> producerUsersMap = new HashMap<>();

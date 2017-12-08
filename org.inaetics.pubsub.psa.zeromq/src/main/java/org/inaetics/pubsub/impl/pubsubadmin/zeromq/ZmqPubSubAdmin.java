@@ -29,6 +29,7 @@ import org.inaetics.pubsub.api.pubsub.Subscriber;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicSender;
+import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
 import org.osgi.framework.Bundle;
@@ -37,20 +38,46 @@ import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.log.LogService;
+import org.zeromq.ZAuth;
+import org.zeromq.ZContext;
 
 public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   public static final String SERVICE_PID = ZmqPubSubAdmin.class.getName();
 
-  private Map<String, String> defaultSubscriberProperties = new HashMap<>();
   private Map<String, String> defaultPublisherProperties = new HashMap<>();
+  private Map<String, String> defaultSubscriberProperties = new HashMap<>();
 
   private static final Set<String> zmqProperties = new HashSet<>(Arrays.asList(
-      "zmq.secure".split(",")));
+      ("PSA_ZMQ_DEFAULT_BASE_PORT, " +
+              "PSA_ZMQ_DEFAULT_MAX_PORT, " +
+              "PSA_NR_ZMQ_THREADS," +
+              "PSA_ZMQ_SECURE").split(",")));
   private static final Set<String> generalProperties =
       new HashSet<>(Arrays.asList("serializer,pubsub.topic,pubsub.scope".split(",")));
   
   private volatile LogService m_LogService;
+
+  private int basePort = ZmqConstants.ZMQ_BASE_PORT_DEFAULT;
+  private int maxPort = ZmqConstants.ZMQ_MAX_PORT_DEFAULT;
+  private int nrOfThreads;
+  private boolean secure;
+
+  private ZContext zmqContext;
+  private ZAuth zmqAuth;
+
+  void init() {
+    System.out.println("INITIALIZED " + this.getClass().getName());
+
+    zmqContext = new ZContext(nrOfThreads);
+
+    if (secure){
+      zmqAuth = new ZAuth(zmqContext);
+      zmqAuth.setVerbose(true);
+      zmqAuth.configureCurve(ZAuth.CURVE_ALLOW_ANY); //TODO: Change to key path location
+    }
+
+  }
 
   protected final void start() throws Exception {
     System.out.println("STARTED " + this.getClass().getName());
@@ -62,6 +89,12 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   void destroy() {
     System.out.println("DESTROYED " + this.getClass().getName());
+
+    if (zmqAuth != null){
+      zmqAuth.destroy();
+    }
+
+    zmqContext.destroy();
   }
 
   private Map<String, String> getPublisherProperties(Bundle bundle, Filter filter) {
@@ -74,8 +107,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
     return properties;
   }
 
-  private Map<String, String> getSubscriberProperties(Bundle bundle,
-      ServiceReference<Subscriber> reference) {
+  private Map<String, String> getSubscriberProperties(Bundle bundle, ServiceReference<Subscriber> reference) {
     Map<String, String> referenceProperties = Utils.getPropertiesFromReference(reference);
 
     String topic = Utils.getTopicFromProperties(referenceProperties);
@@ -116,37 +148,76 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
   }
 
   @Override
-  public synchronized void updated(Dictionary<String, ?> properties) throws ConfigurationException {
-    if (properties != null) {
+  public synchronized void updated(Dictionary<String, ?> cnf) throws ConfigurationException {
+    if (cnf != null) {
+      basePort = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_BASE_PORT)));
+      if (basePort <= 0){
+        basePort = ZmqConstants.ZMQ_BASE_PORT_DEFAULT;
+      }
+
+      maxPort = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_MAX_PORT)));
+      if (maxPort <= 0){
+        maxPort = ZmqConstants.ZMQ_MAX_PORT_DEFAULT;
+      }
+
+      nrOfThreads = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_NR_OF_THREADS)));
+      if (nrOfThreads < 1){
+        nrOfThreads = 1;
+      }
+
+      secure = Boolean.parseBoolean(String.valueOf(cnf.get(ZmqConstants.ZMQ_SECURE)));
+
       defaultPublisherProperties = new HashMap<>();
       defaultSubscriberProperties = new HashMap<>();
-      Enumeration<String> keys = properties.keys();
+      Enumeration<String> keys = cnf.keys();
       while (keys.hasMoreElements()) {
         String key = (String) keys.nextElement();
         if (key.startsWith("pub:")) {
-          defaultPublisherProperties.put(key.substring(4), (String) properties.get(key));
+          defaultPublisherProperties.put(key.substring(4), (String) cnf.get(key));
         } else if (key.startsWith("sub:")) {
-          defaultSubscriberProperties.put(key.substring(4), (String) properties.get(key));
+          defaultSubscriberProperties.put(key.substring(4), (String) cnf.get(key));
         }
       }
     }
   }
 
+
+
+  @Override
+  public synchronized TopicSender createTopicSender(Bundle requester, Filter filter) {
+    Map<String, String> properties = getPublisherProperties(requester, filter);
+
+    ZmqTopicSender topicSender = new ZmqTopicSender(
+            this.zmqContext,
+            properties,
+            Utils.getTopicFromProperties(properties),
+            properties.get(Serializer.SERIALIZER)
+    );
+
+    return topicSender;
+  }
+
+  @Override
+  public synchronized TopicReceiver createTopicReceiver(ServiceReference reference) {
+    Map<String, String> properties = getSubscriberProperties(reference.getBundle(), reference);
+
+    ZmqTopicReceiver topicReceiver = new ZmqTopicReceiver(
+            zmqContext,
+            properties,
+            Utils.getTopicFromProperties(properties)
+    );
+
+    return topicReceiver;
+  }
+
   @Override
   public synchronized double matchPublisher(Bundle requester, Filter filter) {
-    double score = 0;
     Map<String, String> properties = getPublisherProperties(requester, filter);
     return match(properties);
   }
 
   @Override
-  public synchronized TopicSender createTopicSender(Bundle requester, Filter filter) {
-    //TODO
-  }
-
-  @Override
   public synchronized double matchSubscriber(ServiceReference ref) {
-    double score = 0;
     Map<String, String> properties = getSubscriberProperties(ref.getBundle(), ref);
     return match(properties);
   }
@@ -167,11 +238,6 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
       }
     }
     return score;
-  }
-
-  @Override
-  public synchronized TopicReceiver createTopicReceiver(ServiceReference reference) {
-    //TODO
   }
 
   private static Map<String, String> getZmqProperties(Map<String, String> properties) {

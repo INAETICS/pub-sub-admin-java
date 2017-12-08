@@ -17,6 +17,7 @@ import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
+import org.zeromq.ZContext;
 
 import java.util.Map;
 
@@ -26,9 +27,13 @@ public class ZmqTopicReceiver extends TopicReceiver {
           FrameworkUtil.getBundle(ZmqTopicReceiver.class).getBundleContext();
   private final String topic;
 
+  private ZContext zmqContext;
 
-  public ZmqTopicReceiver(Map<String, String> zmqProperties, String topic) {
+  public ZmqTopicReceiver(ZContext zmqContext, Map<String, String> zmqProperties, String topic) {
+
     this.topic = topic;
+    this.zmqContext = zmqContext;
+
     //TODO
 
   }

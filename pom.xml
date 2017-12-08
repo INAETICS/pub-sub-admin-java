@@ -11,8 +11,8 @@
 
     <properties>
         <manifest-file>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifest-file>
-	<maven.compiler.source>1.8</maven.compiler.source>
-	<maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
 
     <build>
@@ -53,8 +53,8 @@
         <module>org.inaetics.pubsub.spi</module>
         <module>org.inaetics.pubsub.topologymanager</module>
         <module>org.inaetics.pubsub.discovery.etcd</module>
-        <!--<module>org.inaetics.pubsub.psa.kafka</module>-->
-        <module>org.inaetics.pubsub.psa.zeromq</module>
+        <module>org.inaetics.pubsub.psa.kafka</module>
+        <!--<module>org.inaetics.pubsub.psa.zeromq</module>-->
         <module>org.inaetics.pubsub.serialization.json</module>
     </modules>
 
