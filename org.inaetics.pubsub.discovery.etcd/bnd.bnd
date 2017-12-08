@@ -1,0 +1,8 @@
+Private-Package: \
+    org.inaetics.pubsub.spi.utils,\
+    org.inaetics.pubsub.spi.discovery,\
+    org.inaetics.pubsub.impl.discovery.etcd
+Bundle-Activator: org.inaetics.pubsub.impl.discovery.etcd.Activator
+Bundle-Version: 0.1
+
+-dsannotations=*

@@ -1,0 +1,8 @@
+Private-Package: \
+    org.inaetics.pubsub.spi.utils,\
+    org.inaetics.pubsub.spi.pubsubadmin,\
+    org.inaetics.pubsub.impl.pubsubadmin.kafka
+Bundle-Activator: org.inaetics.pubsub.impl.pubsubadmin.kafka.Activator
+Bundle-Version: 0.1
+
+-dsannotations=*
