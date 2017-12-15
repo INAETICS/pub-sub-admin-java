@@ -1,8 +1,9 @@
-Private-Package: \
+Export-Package: \
     org.inaetics.pubsub.spi.discovery,\
     org.inaetics.pubsub.spi.pubsubadmin,\
     org.inaetics.pubsub.spi.serialization,\
     org.inaetics.pubsub.spi.utils
+
 Bundle-Version: 0.1
 
 -dsannotations=*

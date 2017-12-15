@@ -1,5 +1,4 @@
 Private-Package: \
-  org.inaetics.pubsub.spi.serialization,\
   org.inaetics.pubsub.impl.serialization.jackson
 
 DynamicImport-Package: *
