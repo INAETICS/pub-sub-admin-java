@@ -4,6 +4,6 @@ Private-Package: \
 DynamicImport-Package: *
 
 Bundle-Activator: org.inaetics.pubsub.impl.serialization.jackson.Activator
-Bundle-Version: 0.1
+Bundle-Version: 1.0.0-SNAPSHOT
 
 -dsannotations=*

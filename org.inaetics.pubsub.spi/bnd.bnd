@@ -4,6 +4,6 @@ Export-Package: \
     org.inaetics.pubsub.spi.serialization,\
     org.inaetics.pubsub.spi.utils
 
-Bundle-Version: 0.1
+Bundle-Version: 1.0.0-SNAPSHOT
 
 -dsannotations=*
