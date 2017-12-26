@@ -1,5 +1,0 @@
-Export-Package: org.inaetics.pubsub.api.pubsub
-Bundle-Version: 1.0.0-SNAPSHOT
-Private-Package: org.inaetics.pubsub.api.pubsub
-
--dsannotations=*

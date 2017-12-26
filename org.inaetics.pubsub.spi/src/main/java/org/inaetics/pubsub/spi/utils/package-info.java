@@ -11,11 +11,5 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-/**
- * 
- */
-/**
- * @author maintain
- *
- */
+@org.osgi.annotation.versioning.Version("1.0.0")
 package org.inaetics.pubsub.spi.utils;

@@ -1,9 +1,0 @@
-Export-Package: \
-    org.inaetics.pubsub.spi.discovery,\
-    org.inaetics.pubsub.spi.pubsubadmin,\
-    org.inaetics.pubsub.spi.serialization,\
-    org.inaetics.pubsub.spi.utils
-
-Bundle-Version: 1.0.0-SNAPSHOT
-
--dsannotations=*

@@ -1,7 +1,0 @@
-Private-Package: \
-    org.inaetics.pubsub.impl.pubsubadmin.zeromq
-
-Bundle-Activator: org.inaetics.pubsub.impl.pubsubadmin.zeromq.Activator
-Bundle-Version: 1.0.0-SNAPSHOT
-
--dsannotations=*

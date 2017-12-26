@@ -22,7 +22,7 @@
                     <bnd combine.self="override"><![CDATA[
 #Always export packages with a @Version annotation
 -exportcontents: ${packages;ANNOTATED;org.osgi.annotation.versioning.Version}
-Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
+#Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
 ]]>
                     </bnd>
                 </configuration>
