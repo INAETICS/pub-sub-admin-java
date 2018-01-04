@@ -15,11 +15,18 @@ package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 import org.inaetics.pubsub.api.pubsub.MultipartException;
 import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.zeromq.ZMQ;
 
 public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
-  public ZmqPublisher(String topic, KafkaProducer<byte[], byte[]> producer, Serializer serializer) {
+  private String topic;
+  private ZMQ.Socket socket;
+  private Serializer serializer;
 
+  public ZmqPublisher(String topic, ZMQ.Socket socket, Serializer serializer) {
+    this.topic = topic;
+    this.serializer = serializer;
+    this.socket = socket;
   }
 
   @Override
@@ -32,8 +39,8 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
   }
 
-//  public KafkaProducer<byte[], byte[]> getProducer() {
-//    return producer;
-//  }
+  public ZMQ.Socket getSocket() {
+    return this.socket;
+  }
 
 }

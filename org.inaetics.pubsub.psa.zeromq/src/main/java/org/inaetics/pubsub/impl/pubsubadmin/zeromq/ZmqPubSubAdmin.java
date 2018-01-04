@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
@@ -41,6 +42,7 @@ import org.osgi.service.log.LogService;
 import org.zeromq.ZAuth;
 import org.zeromq.ZContext;
 
+@Component
 public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   public static final String SERVICE_PID = ZmqPubSubAdmin.class.getName();
@@ -66,8 +68,9 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
   private ZContext zmqContext;
   private ZAuth zmqAuth;
 
+  @Init
   void init() {
-    System.out.println("INITIALIZED " + this.getClass().getName());
+    System.out.println("INITIALIZED " + this.getClass().getSimpleName());
 
     zmqContext = new ZContext(nrOfThreads);
 
@@ -79,16 +82,19 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   }
 
+  @Start
   protected final void start() throws Exception {
-    System.out.println("STARTED " + this.getClass().getName());
+    System.out.println("STARTED " + this.getClass().getSimpleName());
   }
 
+  @Stop
   protected final void stop() throws Exception {
-    System.out.println("STOPPED " + this.getClass().getName());
+    System.out.println("STOPPED " + this.getClass().getSimpleName());
   }
 
+  @Destroy
   void destroy() {
-    System.out.println("DESTROYED " + this.getClass().getName());
+    System.out.println("DESTROYED " + this.getClass().getSimpleName());
 
     if (zmqAuth != null){
       zmqAuth.destroy();
@@ -150,6 +156,8 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
   @Override
   public synchronized void updated(Dictionary<String, ?> cnf) throws ConfigurationException {
     if (cnf != null) {
+      System.out.println("UPDATED " + this.getClass().getSimpleName());
+
       basePort = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_BASE_PORT)));
       if (basePort <= 0){
         basePort = ZmqConstants.ZMQ_BASE_PORT_DEFAULT;

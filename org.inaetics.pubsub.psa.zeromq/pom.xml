@@ -12,6 +12,13 @@
     <artifactId>org.inaetics.pubsub.psa.zeromq</artifactId>
     <name>INAETICS PubSub ZeroMQ PubSubAdmin</name>
 
+    <properties>
+        <m2.dir>${user.home}/.m2</m2.dir>
+
+        <jnacl.version>0.1.0</jnacl.version>
+        <jnacl.jar>${m2.dir}/repository/org/zeromq/jnacl/${jnacl.version}/jnacl-${jnacl.version}.jar</jnacl.jar>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -43,6 +50,33 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
                     </filesets>
                 </configuration>
             </plugin>
+
+            <!-- The maven-antrun-plugin is used for copying the MANIFEST.MF into the dependency jar -->
+            <!-- Otherwise, bnd can't find the dependency because of its missing Bundle-SymbolicName -->
+            <!-- When jnacl is OSGi-ready, this can be removed -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <execution>
+                        <id>repack</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- jnacl -->
+                                <unzip src="${jnacl.jar}" dest="${project.build.directory}/jnacl"/>
+                                <copy file="${project.basedir}/manifests/jnacl/MANIFEST.MF"
+                                      tofile="${project.build.directory}/jnacl/META-INF/MANIFEST.MF"/>
+                                <zip basedir="${project.build.directory}/jnacl" destfile="${jnacl.jar}"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -61,6 +95,11 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
             <version>0.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.zeromq</groupId>
+            <artifactId>jnacl</artifactId>
+            <version>0.1.0</version>
         </dependency>
     </dependencies>
 </project>

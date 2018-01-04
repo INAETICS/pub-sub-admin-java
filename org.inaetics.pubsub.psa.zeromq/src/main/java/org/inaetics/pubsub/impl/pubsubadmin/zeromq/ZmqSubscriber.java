@@ -18,18 +18,54 @@ import org.inaetics.pubsub.spi.serialization.MultipartContainer;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.InvalidSyntaxException;
+import org.osgi.util.tracker.ServiceTracker;
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class ZmqSubscriber extends Thread {
 
-  private BundleContext bundleContext =
-          FrameworkUtil.getBundle(ZmqSubscriber.class).getBundleContext();
+  private BundleContext bundleContext = FrameworkUtil.getBundle(ZmqSubscriber.class).getBundleContext();
+
+  private final Map<Subscriber, BlockingQueue<MultipartContainer>> subscribers =
+          Collections.synchronizedMap(new HashMap<>());
+  private final Map<Subscriber, SubscriberCaller> subscriberCallers =
+          Collections.synchronizedMap(new HashMap<>());
+
+  private Map<String, String> zmqProperties;
+  private String topic;
   private Serializer serializer;
 
-  public ZmqSubscriber(Map<String, String> zmqProperties, String zmqTopic, String serializer) {
-    //TODO
+  private ZMQ.Socket socket;
+
+  public ZmqSubscriber(Map<String, String> zmqProperties, String topic, String serializer, ZContext zmqContext) {
+    this.zmqProperties = zmqProperties;
+    this.topic = topic;
+
+    this.socket = zmqContext.createSocket(ZMQ.SUB);
+
+    try {
+      ServiceTracker tracker = new ServiceTracker<>(bundleContext,
+              bundleContext.createFilter("(&(objectClass=" + Serializer.class.getName() + ")" + "("
+                      + Serializer.SERIALIZER + "=" + serializer + "))"),
+              null);
+      tracker.open();
+      this.serializer = (Serializer) tracker.waitForService(0);
+
+    } catch (InvalidSyntaxException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (InterruptedException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+
   }
 
   @Override
@@ -50,35 +86,36 @@ private class SubscriberCaller extends Thread {
     //TODO
   }
 
-  }
+}
 
   public void connect(Subscriber subscriber) {
-    //TODO
+    BlockingQueue<MultipartContainer> queue = new LinkedBlockingQueue<MultipartContainer>();
+    SubscriberCaller caller = new SubscriberCaller(subscriber, queue);
+    this.subscribers.put(subscriber, queue);
+    this.subscriberCallers.put(subscriber, caller);
+    caller.start();
   }
 
   public void disconnect(Subscriber subscriber) {
-    //TODO
+    this.subscribers.remove(subscriber);
+    this.subscriberCallers.get(subscriber).interrupt();
+    this.subscriberCallers.remove(subscriber);
   }
 
   public boolean hasSubscribers() {
-    //TODO
+    return !subscribers.isEmpty();
   }
 
-  public void stopKafkaSubscriber() {
-    //TODO
+  public void stopZmqSubscriber() {
+    this.interrupt();
+    for (Thread thread : subscriberCallers.values()) {
+      thread.interrupt();
+    }
+    this.socket.close();
   }
 
-  private KafkaStream<byte[], byte[]> getStream(String kafkaTopic) {
-    //TODO
-  }
-
-  private ConsumerConfig createConsumerConfig(Map<String, String> properties) {
-    //TODO
-  }
-
-
-  public String getKafkaTopic() {
-    //TODO
+  public String getTopic() {
+    return this.topic;
   }
 
 

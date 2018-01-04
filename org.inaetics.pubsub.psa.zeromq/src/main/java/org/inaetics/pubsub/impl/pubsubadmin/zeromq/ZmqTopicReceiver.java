@@ -13,26 +13,35 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
+import org.inaetics.pubsub.api.pubsub.Subscriber;
+import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
+import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
 import org.zeromq.ZContext;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class ZmqTopicReceiver extends TopicReceiver {
 
-  private final BundleContext bundleContext =
-          FrameworkUtil.getBundle(ZmqTopicReceiver.class).getBundleContext();
-  private final String topic;
+  private final BundleContext bundleContext = FrameworkUtil.getBundle(ZmqTopicReceiver.class).getBundleContext();
+
+  private final Set<Subscriber> subscribers = new HashSet<>();
 
   private ZContext zmqContext;
+  private Map<String, String> zmqProperties;
+  private final String topic;
 
   public ZmqTopicReceiver(ZContext zmqContext, Map<String, String> zmqProperties, String topic) {
 
-    this.topic = topic;
     this.zmqContext = zmqContext;
+    this.zmqProperties = zmqProperties;
+    this.topic = topic;
 
     //TODO
 
@@ -45,7 +54,13 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   @Override
   public Map<String, String> getEndpointProperties() {
-    //TODO
+    Map<String, String> properties = new HashMap<>();
+    properties.put(DiscoveryManager.SERVICE_ID, Integer.toString(getId()));
+    properties.put(Subscriber.PUBSUB_TOPIC, topic);
+    properties.put(Constants.PUBSUB_TYPE, Constants.SUBSCRIBER);
+    properties.put(PUBSUB_ADMIN_TYPE, ZmqConstants.ZMQ);
+
+    return properties;
   }
 
   @Override
@@ -91,7 +106,7 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   @Override
   public boolean isActive() {
-    //TODO
+    return !subscribers.isEmpty();
   }
 
 }

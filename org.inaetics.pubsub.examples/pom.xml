@@ -36,6 +36,7 @@
                     <resolve>false</resolve>
                     <bndruns>
                         <bndrun>launch.pubsub.kafka.bndrun</bndrun>
+                        <bndrun>launch.pubsub.zmq.bndrun</bndrun>
                     </bndruns>
                 </configuration>
                 <executions>
@@ -94,6 +95,11 @@
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.psa.kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.psa.zeromq</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

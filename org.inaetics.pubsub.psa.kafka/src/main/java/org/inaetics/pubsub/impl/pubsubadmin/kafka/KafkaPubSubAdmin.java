@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
@@ -39,6 +40,7 @@ import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.log.LogService;
 
+@Component
 public class KafkaPubSubAdmin implements PubSubAdmin, ManagedService {
 
   public static final String SERVICE_PID = KafkaPubSubAdmin.class.getName();
@@ -57,17 +59,24 @@ public class KafkaPubSubAdmin implements PubSubAdmin, ManagedService {
   
   private volatile LogService m_LogService;
 
+  @Init
+  void init(){
+    System.out.println("INITIALIZED " + this.getClass().getSimpleName());
+  }
 
+  @Start
   protected final void start() throws Exception {
-    System.out.println("STARTED " + this.getClass().getName());
+    System.out.println("STARTED " + this.getClass().getSimpleName());
   }
 
+  @Stop
   protected final void stop() throws Exception {
-    System.out.println("STOPPED " + this.getClass().getName());
+    System.out.println("STOPPED " + this.getClass().getSimpleName());
   }
 
+  @Destroy
   void destroy() {
-    System.out.println("DESTROYED " + this.getClass().getName());
+    System.out.println("DESTROYED " + this.getClass().getSimpleName());
   }
 
   private Map<String, String> getPublisherProperties(Bundle bundle, Filter filter) {
@@ -123,6 +132,8 @@ public class KafkaPubSubAdmin implements PubSubAdmin, ManagedService {
 
   @Override
   public synchronized void updated(Dictionary<String, ?> properties) throws ConfigurationException {
+    System.out.println("UPDATED " + this.getClass().getSimpleName());
+
     if (properties != null) {
       defaultPublisherProperties = new HashMap<>();
       defaultSubscriberProperties = new HashMap<>();

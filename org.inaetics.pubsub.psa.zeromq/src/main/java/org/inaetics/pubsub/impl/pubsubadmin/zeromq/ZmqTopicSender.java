@@ -14,8 +14,10 @@
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 import org.inaetics.pubsub.api.pubsub.Publisher;
+import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicSender;
 import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.*;
 import org.osgi.util.tracker.ServiceTracker;
 import org.zeromq.ZContext;
@@ -75,7 +77,14 @@ public class ZmqTopicSender extends TopicSender {
 
   @Override
   public Map<String, String> getEndpointProperties() {
-    //TODO
+    Map<String, String> properties = new HashMap<>();
+    properties.put(DiscoveryManager.SERVICE_ID, Integer.toString(getId()));
+    properties.put(Publisher.PUBSUB_TOPIC, topic);
+    properties.put(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_TYPE, Constants.PUBLISHER);
+    properties.put(Serializer.SERIALIZER, serializerString);
+    properties.put(PUBSUB_ADMIN_TYPE, ZmqConstants.ZMQ);
+
+    return properties;
   }
 
   @Override
@@ -116,7 +125,13 @@ public class ZmqTopicSender extends TopicSender {
 
   @Override
   public Publisher getService(Bundle bundle, ServiceRegistration<Publisher> registration) {
-    //TODO
+    if (publishers.get(bundle) == null) {
+      Publisher publisher = new ZmqPublisher(topic, zmqSocket, serializer);
+      publishers.put(bundle, publisher);
+      return publisher;
+    } else {
+      return publishers.get(bundle);
+    }
   }
 
   @Override

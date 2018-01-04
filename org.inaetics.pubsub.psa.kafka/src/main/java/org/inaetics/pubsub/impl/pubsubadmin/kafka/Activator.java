@@ -25,8 +25,13 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
+  private KafkaPubSubAdmin admin;
+
   @Override
   public void init(BundleContext bundleContext, DependencyManager manager) {
+
+    admin = new KafkaPubSubAdmin();
+
     try {
 
       String[] objectClass = new String[] {PubSubAdmin.class.getName()};
@@ -34,9 +39,9 @@ public class Activator extends DependencyActivatorBase {
       properties.put(Constants.SERVICE_PID, KafkaPubSubAdmin.SERVICE_PID);
 
       manager.add(
-          createComponent()
+          manager.createComponent()
             .setInterface(objectClass, properties)
-            .setImplementation(KafkaPubSubAdmin.class)
+            .setImplementation(admin)
             .add(createServiceDependency()
                 .setService(LogService.class)
                 .setRequired(false))
@@ -45,12 +50,25 @@ public class Activator extends DependencyActivatorBase {
     } catch (Exception e) {
       e.printStackTrace();
     }
-    
+
+    admin.init();
+
+  }
+
+  @Override
+  public void start(BundleContext context) throws Exception {
+    super.start(context);
+    admin.start();
+  }
+
+  @Override
+  public void stop(BundleContext context) throws Exception {
+    super.stop(context);
+    admin.stop();
   }
 
   @Override
   public void destroy(BundleContext arg0, DependencyManager arg1) throws Exception {
-    // TODO Auto-generated method stub
-    
+    admin.destroy();
   }
 }

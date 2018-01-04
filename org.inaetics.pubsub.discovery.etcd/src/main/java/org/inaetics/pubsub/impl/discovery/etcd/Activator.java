@@ -32,7 +32,7 @@ public class Activator extends DependencyActivatorBase {
     Dictionary<String, Object> properties = new Hashtable<String, Object>();
     properties.put(Constants.SERVICE_PID, EtcdDiscoveryManager.SERVICE_PID);
 
-    manager.add(createComponent().setInterface(objectClass, properties)
+    manager.add(manager.createComponent().setInterface(objectClass, properties)
         .setImplementation(EtcdDiscoveryManager.class)
         .add(createServiceDependency()
             .setService(LogService.class)

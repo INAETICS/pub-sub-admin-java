@@ -42,7 +42,7 @@ public class Activator extends DependencyActivatorBase {
     properties.put(Constants.SERVICE_PID, PubSubTopologyManager.SERVICE_PID);
     properties.put(EventConstants.EVENT_TOPIC, topics);
     manager.add(
-        createComponent()
+        manager.createComponent()
         .setInterface(objectClass, properties)
         .setImplementation(PubSubTopologyManager.class)
             .add(createServiceDependency()

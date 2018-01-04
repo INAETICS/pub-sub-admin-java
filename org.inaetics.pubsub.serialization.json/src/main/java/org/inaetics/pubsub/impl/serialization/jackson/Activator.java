@@ -31,7 +31,7 @@ public class Activator extends DependencyActivatorBase{
     properties.put(Serializer.SERIALIZER, JacksonSerializer.SERIALIZER_JACKSON);
 
     dependencyManager.add(
-        createComponent()
+        dependencyManager.createComponent()
           .setInterface(objectClass, properties)
           .setImplementation(JacksonSerializer.class)
           .add(createServiceDependency()
