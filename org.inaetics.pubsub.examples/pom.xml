@@ -35,7 +35,7 @@
                     <failOnChanges>false</failOnChanges>
                     <resolve>false</resolve>
                     <bndruns>
-                        <bndrun>launch.pubsub.bndrun</bndrun>
+                        <bndrun>launch.pubsub.kafka.bndrun</bndrun>
                     </bndruns>
                 </configuration>
                 <executions>

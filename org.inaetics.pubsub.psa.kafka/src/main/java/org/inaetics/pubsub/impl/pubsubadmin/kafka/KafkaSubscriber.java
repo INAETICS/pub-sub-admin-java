@@ -123,7 +123,7 @@ private class SubscriberCaller extends Thread {
     }
   }
 
-  }
+}
 
   public void connect(Subscriber subscriber) {
     BlockingQueue<MultipartContainer> queue = new LinkedBlockingQueue<MultipartContainer>();

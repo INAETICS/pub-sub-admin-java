@@ -12,6 +12,14 @@
     <artifactId>org.inaetics.pubsub.psa.kafka</artifactId>
     <name>INAETICS PubSub Kafka PubSubAdmin</name>
 
+    <properties>
+        <m2.dir>${user.home}/.m2</m2.dir>
+
+        <kafka.version>1.0.0</kafka.version>
+        <kafka_2.12.jar>${m2.dir}/repository/org/apache/kafka/kafka_2.12/${kafka.version}/kafka_2.12-${kafka.version}.jar</kafka_2.12.jar>
+        <kafka-clients.jar>${m2.dir}/repository/org/apache/kafka/kafka-clients/${kafka.version}/kafka-clients-${kafka.version}.jar</kafka-clients.jar>
+    </properties>
+
     <build>
         <plugins>
             <plugin>
@@ -43,6 +51,40 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
                     </filesets>
                 </configuration>
             </plugin>
+
+            <!-- The maven-antrun-plugin is used for copying the MANIFEST.MF into the dependency jar -->
+            <!-- Otherwise, bnd can't find the dependency because of its missing Bundle-SymbolicName -->
+            <!-- When Kafka is OSGi-ready, this can be removed -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>1.8</version>
+                <executions>
+                    <execution>
+                        <id>repack</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- kafka_2.12 -->
+                                <unzip src="${kafka_2.12.jar}" dest="${project.build.directory}/kafka_2.12"/>
+                                <copy file="${project.basedir}/manifests/kafka_2.12/MANIFEST.MF"
+                                      tofile="${project.build.directory}/kafka_2.12/META-INF/MANIFEST.MF"/>
+                                <zip basedir="${project.build.directory}/kafka_2.12" destfile="${kafka_2.12.jar}"/>
+
+                                <!-- kafka-clients -->
+                                <unzip src="${kafka-clients.jar}" dest="${project.build.directory}/kafka-clients"/>
+                                <copy file="${project.basedir}/manifests/kafka-clients/MANIFEST.MF"
+                                      tofile="${project.build.directory}/kafka-clients/META-INF/MANIFEST.MF"/>
+                                <zip basedir="${project.build.directory}/kafka-clients" destfile="${kafka-clients.jar}"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 
@@ -60,8 +102,13 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
 
         <dependency>
             <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_2.12</artifactId>
-            <version>1.0.0</version>
+            <version>${kafka.version}</version>
         </dependency>
     </dependencies>
 </project>
