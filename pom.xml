@@ -56,6 +56,22 @@
         </plugins>
     </build>
 
+    <!-- temporary addition for jnacl (OSGi included in snapshot) -->
+    <profiles>
+        <profile>
+            <id>allow-snapshots</id>
+            <activation><activeByDefault>true</activeByDefault></activation>
+            <repositories>
+                <repository>
+                    <id>snapshots-repo</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+                    <releases><enabled>false</enabled></releases>
+                    <snapshots><enabled>true</enabled></snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+
     <dependencies>
         <!-- OSGi framework + API -->
         <dependency>
