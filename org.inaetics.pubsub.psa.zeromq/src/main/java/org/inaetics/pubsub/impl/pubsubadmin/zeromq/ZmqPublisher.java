@@ -32,10 +32,14 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
   @Override
   public void send(Object msg) {
 
+    System.out.println("SEND: " + msg);
+
   }
 
   @Override
   public synchronized void sendMultipart(Object msg, int flags) throws MultipartException {
+
+    System.out.println("SEND: " + msg);
 
   }
 

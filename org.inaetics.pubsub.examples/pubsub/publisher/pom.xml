@@ -5,13 +5,12 @@
 
     <parent>
         <groupId>org.inaetics.pubsub</groupId>
-        <artifactId>parent</artifactId>
+        <artifactId>org.inaetics.pubsub.examples.pubsub</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>org.inaetics.pubsub.examples</artifactId>
-    <name>INAETICS PubSub Examples</name>
-    <packaging>pom</packaging>
+    <artifactId>org.inaetics.pubsub.examples.pubsub.publisher</artifactId>
+    <name>INAETICS PubSub Examples - Publisher</name>
 
     <build>
         <plugins>
@@ -23,6 +22,7 @@
                     <bnd combine.self="override"><![CDATA[
 #Always export packages with a @Version annotation
 -exportcontents: ${packages;ANNOTATED;org.osgi.annotation.versioning.Version}
+Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
 ]]>
                     </bnd>
                 </configuration>
@@ -45,17 +45,5 @@
             </plugin>
         </plugins>
     </build>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
-
-    <modules>
-        <module>pubsub</module>
-    </modules>
 
 </project>

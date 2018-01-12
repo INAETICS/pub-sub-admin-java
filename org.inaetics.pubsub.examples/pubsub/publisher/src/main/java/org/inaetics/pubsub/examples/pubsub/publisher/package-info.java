@@ -12,4 +12,4 @@
  *    limitations under the License.
  *******************************************************************************/
 @org.osgi.annotation.versioning.Version("1.0.0")
-package org.inaetics.pubsub.examples.pubsub;
+package org.inaetics.pubsub.examples.pubsub.publisher;

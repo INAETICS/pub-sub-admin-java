@@ -26,6 +26,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.felix.dm.annotation.api.Destroy;
+import org.apache.felix.dm.annotation.api.Start;
+import org.apache.felix.dm.annotation.api.Stop;
 import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
@@ -52,16 +55,14 @@ import org.osgi.service.event.EventHandler;
 import org.osgi.service.log.LogService;
 
 
-public class PubSubTopologyManager
-    implements ListenerHook, ServiceListener, EventHandler, ManagedService {
+public class PubSubTopologyManager implements ListenerHook, ServiceListener, EventHandler, ManagedService {
 
   public final static String SERVICE_PID = PubSubTopologyManager.class.getName();
 
   private final List<PubSubAdmin> pubSubAdmins = new CopyOnWriteArrayList<>();
   private final List<DiscoveryManager> discoveryManagers = new CopyOnWriteArrayList<>();
 
-  private BundleContext bundleContext =
-      FrameworkUtil.getBundle(PubSubTopologyManager.class).getBundleContext();
+  private BundleContext bundleContext = FrameworkUtil.getBundle(PubSubTopologyManager.class).getBundleContext();
 
   private volatile LogService m_LogService;
 
@@ -450,16 +451,19 @@ public class PubSubTopologyManager
   // DependencyManager callback
   private void adminAdded(PubSubAdmin admin) {
     pubSubAdmins.add(admin);
+    System.out.println("PSA added: " + admin.getClass().getName());
   }
 
   // DependencyManager callback
   private void adminRemoved(PubSubAdmin admin) {
     pubSubAdmins.remove(admin);
+    System.out.println("PSA removed: " + admin.getClass().getName());
   }
 
   // DependencyManager callback
   private synchronized void discoveryManagerAdded(DiscoveryManager manager) {
     discoveryManagers.add(manager);
+    System.out.println("DiscoveryManager added: " + manager.getClass().getName());
 
     publisherEndpoints.addAll(manager.getCurrentPublisherEndPoints());
     subscriberEndpoints.addAll(manager.getCurrentSubscriberEndPoints());
@@ -468,21 +472,26 @@ public class PubSubTopologyManager
   // DependencyManager callback
   private void discoveryManagerRemoved(DiscoveryManager manager) {
     discoveryManagers.remove(manager);
+    System.out.println("DiscoveryManager removed: " + manager.getClass().getName());
   }
 
+  @Start
   protected final void start() throws Exception {
     System.out.println("STARTED " + this.getClass().getName());
     
     ServiceReference[] references = bundleContext.getAllServiceReferences(Subscriber.class.getName(), null);
-    
-    for(ServiceReference reference: references){
-      connectSubscriber(reference);
+
+    if (references != null) {
+      for (ServiceReference reference : references) {
+        connectSubscriber(reference);
+      }
     }
 
     bundleContext.addServiceListener(this, "(objectClass=" + Subscriber.class.getName() + ")");
 
   }
 
+  @Stop
   protected final synchronized void stop() throws Exception {
     System.out.println("STOPPED " + this.getClass().getName());
 
@@ -500,6 +509,7 @@ public class PubSubTopologyManager
     }
   }
 
+  @Destroy
   protected final void destroy() {
     System.out.println("DESTROYED " + this.getClass().getName());
   }

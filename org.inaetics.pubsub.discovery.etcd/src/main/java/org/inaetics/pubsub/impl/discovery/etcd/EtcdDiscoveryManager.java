@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
@@ -45,11 +46,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+@Component
 public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
+
   public final static String SERVICE_PID = EtcdDiscoveryManager.class.getName();
-  public final static String PUBSUB_ROOT_PATH = "/pubsub/";
-  public final static String PUBSUB_PUBLISHER_PATH = PUBSUB_ROOT_PATH + "publisher/";
-  public final static String PUBSUB_SUBSCRIBER_PATH = PUBSUB_ROOT_PATH + "subscriber/";
+  private String PUBSUB_ROOT_PATH = "/pubsub/";
+  private String PUBSUB_PUBLISHER_PATH;
+  private String PUBSUB_SUBSCRIBER_PATH;
 
   private final Set<Map<String, String>> publishers = Collections.synchronizedSet(new HashSet<>());
   private final Set<Map<String, String>> subscribers = Collections.synchronizedSet(new HashSet<>());
@@ -57,14 +60,111 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
   private volatile int TTL = 15;
   private volatile int TTLRefresh = 10;
   private volatile boolean stopped = false;
-  private String etcdUrl = "http://localhost:2379/v2/keys";
+  private String etcdUrl;
   private EtcdWrapper etcdWrapper;
   private ExecutorService executor;
   private ResponseListener responseListener;
-  private TTLRefresher refresher;;
-  private BundleContext myBundleContext;
+  private TTLRefresher refresher;
+  private BundleContext bundleContext = FrameworkUtil.getBundle(EtcdDiscoveryManager.class).getBundleContext();
   private String localFrameworkUUID;
   private volatile LogService m_LogService;
+
+  @Init
+  protected final void init(){
+
+    String etcdUrl = bundleContext.getProperty("org.inaetics.pubsub.discovery.etcd.connecturl");
+    if (etcdUrl != null) {
+      this.etcdUrl = etcdUrl.trim() + "/v2/keys";
+    } else {
+      this.etcdUrl = "http://127.0.0.1:2379/v2/keys";
+    }
+
+    String pubsubRootPath = bundleContext.getProperty("org.inaetics.pubsub.discovery.etcd.rootpath");
+    if (pubsubRootPath != null) {
+      this.PUBSUB_ROOT_PATH = pubsubRootPath.trim();
+    }
+
+    if (!this.PUBSUB_ROOT_PATH.endsWith("/")){
+      this.PUBSUB_ROOT_PATH += "/";
+    }
+
+    this.PUBSUB_PUBLISHER_PATH = PUBSUB_ROOT_PATH + "publisher/";
+    this.PUBSUB_SUBSCRIBER_PATH = PUBSUB_ROOT_PATH + "subscriber/";
+
+  }
+
+  @Start
+  protected final void start(){
+    localFrameworkUUID = Utils.getFrameworkUUID(bundleContext);
+
+    System.out.println("STARTED " + this.getClass().getName());
+
+    etcdWrapper = new EtcdWrapper(etcdUrl);
+    executor = Executors.newCachedThreadPool();
+    refresher = new TTLRefresher(etcdUrl);
+    refresher.start();
+    responseListener = new ResponseListener();
+    stopped = false;
+
+    executor.execute(new Runnable() {
+      @Override
+      public void run() {
+        initDiscovery();
+      }
+    });
+  }
+
+  @Stop
+  protected final void stop() throws Exception {
+    stopDiscovery();
+    System.out.println("STOPPED " + this.getClass().getName());
+  }
+
+  @Destroy
+  protected final void destroy() {
+    System.out.println("DESTROYED " + this.getClass().getName());
+  }
+
+  @Override
+  public void updated(Dictionary properties) throws ConfigurationException {
+    if (properties != null) {
+      if (properties.get("url") != null) {
+        this.etcdUrl = (String) properties.get("url");
+      } if (properties.get("TTL") != null) {
+        this.TTL = (Integer) properties.get("TTL");
+      }if (properties.get("TTLRefresh") != null) {
+        this.TTLRefresh = (Integer) properties.get("TTLRefresh");
+      }
+    }
+  }
+
+  private void initDiscovery() {
+    try {
+      try {
+        etcdWrapper.get(PUBSUB_ROOT_PATH, false, true, -1);
+      } catch (FileNotFoundException e) {
+        etcdWrapper.createDirectory(PUBSUB_ROOT_PATH);
+      }
+
+      JsonNode response = etcdWrapper.get(PUBSUB_ROOT_PATH, false, true, -1);
+      long index = response.get("EtcdIndex").asLong();
+      List<JsonNode> nodes = getRecursivelyFromDirectory(response.get("node"));
+      for (JsonNode node : nodes) {
+        informTopologyManagerOfDiscover(node);
+      }
+      setDirectoryWatch(index + 1);
+    } catch (Throwable e) {
+      e.printStackTrace();
+      m_LogService.log(LogService.LOG_ERROR, e.getMessage(), e);
+    }
+  }
+
+  public void stopDiscovery() {
+    stopped = true;
+    executor.shutdownNow();
+    etcdWrapper.stop();
+    refresher.interrupt();
+  }
 
   @Override
   public void announcePublisher(Map<String, String> properties) {
@@ -202,37 +302,6 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
     return PUBSUB_PUBLISHER_PATH + topic + "/" + localFrameworkUUID + "-" + serviceID;
   }
 
-  protected final void start(){
-    myBundleContext = FrameworkUtil.getBundle(this.getClass()).getBundleContext();
-    localFrameworkUUID = Utils.getFrameworkUUID(myBundleContext);
-
-    System.out.println("STARTED " + this.getClass().getName());
-    
-    etcdWrapper = new EtcdWrapper(etcdUrl);
-    executor = Executors.newCachedThreadPool();
-    refresher = new TTLRefresher(etcdUrl);
-    refresher.start();
-    responseListener = new ResponseListener();
-    stopped = false;
-
-    executor.execute(new Runnable() {
-      @Override
-      public void run() {
-        initDiscovery();
-      }
-    });
-  }
-
-  
-  public void stopDiscovery() {
-    stopped = true;
-    executor.shutdownNow();
-    etcdWrapper.stop();
-    refresher.interrupt();
-  }
-
-
-
   private class ResponseListener implements EtcdCallback {
 
     @Override
@@ -298,27 +367,6 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
       return false;
     }
 
-  }
-
-  private void initDiscovery() {
-    try {
-      try {
-        etcdWrapper.get(PUBSUB_ROOT_PATH, false, true, -1);
-      } catch (FileNotFoundException e) {
-        etcdWrapper.createDirectory(PUBSUB_ROOT_PATH);
-      }
-
-      JsonNode response = etcdWrapper.get(PUBSUB_ROOT_PATH, false, true, -1);
-      long index = response.get("EtcdIndex").asLong();
-      List<JsonNode> nodes = getRecursivelyFromDirectory(response.get("node"));
-      for (JsonNode node : nodes) {
-        informTopologyManagerOfDiscover(node);
-      }
-      setDirectoryWatch(index + 1);
-    } catch (Throwable e) {
-      e.printStackTrace();
-      m_LogService.log(LogService.LOG_ERROR, e.getMessage(), e);
-    }
   }
 
   private List<JsonNode> getRecursivelyFromDirectory(JsonNode node) {
@@ -395,9 +443,9 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
    * @param eventType
    */
   private void sendEvent(Map<String, String> info, String eventType) {
-    ServiceReference ref = myBundleContext.getServiceReference(EventAdmin.class.getName());
+    ServiceReference ref = bundleContext.getServiceReference(EventAdmin.class.getName());
     if (ref != null) {
-      EventAdmin eventAdmin = (EventAdmin) myBundleContext.getService(ref);
+      EventAdmin eventAdmin = (EventAdmin) bundleContext.getService(ref);
 
       Dictionary<String, Object> properties = new Hashtable<>();
       properties.put(Constants.DISCOVERY_EVENT_TYPE, eventType);
@@ -407,33 +455,6 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
 
       eventAdmin.sendEvent(reportGeneratedEvent);
 
-    }
-
-  }
-
-  protected final void stop() throws Exception {
-    stopDiscovery();
-    System.out.println("STOPPED " + this.getClass().getName());
-  }
-
-  void destroy() {
-    System.out.println("DESTROYED " + this.getClass().getName());
-  }
-
-
-  /**
-   * Implementation of ManagedService
-   */
-  @Override
-  public void updated(Dictionary properties) throws ConfigurationException {
-    if (properties != null) {
-      if (properties.get("url") != null) {
-        this.etcdUrl = (String) properties.get("url");
-      } if (properties.get("TTL") != null) {
-        this.TTL = (Integer) properties.get("TTL");
-      }if (properties.get("TTLRefresh") != null) {
-        this.TTLRefresh = (Integer) properties.get("TTLRefresh");
-      }
     }
 
   }

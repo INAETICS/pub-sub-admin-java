@@ -16,13 +16,13 @@ package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 public class ZmqConstants {
   public static final String ZMQ = "zmq";
 
-  public static final String ZMQ_BASE_PORT = "PSA_ZMQ_DEFAULT_BASE_PORT";
+  public static final String ZMQ_BASE_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.min";
   public static final int ZMQ_BASE_PORT_DEFAULT = 5501;
 
-  public static final String ZMQ_MAX_PORT = "PSA_ZMQ_DEFAULT_MAX_PORT";
+  public static final String ZMQ_MAX_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.max";
   public static final int ZMQ_MAX_PORT_DEFAULT = 6000;
 
-  public static final String ZMQ_NR_OF_THREADS = "PSA_NR_ZMQ_THREADS";
-  public static final String ZMQ_SECURE = "PSA_ZMQ_SECURE";
+  public static final String ZMQ_NR_OF_THREADS = "org.inaetics.pubsub.psa.zeromq.threads";
+  public static final String ZMQ_SECURE = "org.inaetics.pubsub.psa.zeromq.secure";
 
 }

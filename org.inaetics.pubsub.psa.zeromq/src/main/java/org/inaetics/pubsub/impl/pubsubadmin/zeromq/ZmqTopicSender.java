@@ -20,11 +20,12 @@ import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.*;
 import org.osgi.util.tracker.ServiceTracker;
+import org.zeromq.ZCert;
+import org.zeromq.ZCertStore;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class ZmqTopicSender extends TopicSender {
 
@@ -32,13 +33,14 @@ public class ZmqTopicSender extends TopicSender {
   private final String topic;
 
   private ServiceTracker tracker;
+  private ServiceRegistration<ServiceFactory<Publisher>> registration;
   private final Serializer serializer;
   private final String serializerString;
 
   private final Map<Bundle, Publisher> publishers = new HashMap<>();
 
-  private ZContext zmqContext;
   private ZMQ.Socket zmqSocket;
+  private String ep;
 
   public ZmqTopicSender(ZContext zmqContext, Map<String, String> zmqProperties, String topic, String serializer) {
 
@@ -46,7 +48,6 @@ public class ZmqTopicSender extends TopicSender {
     this.topic = topic;
 
     Filter filter = null;
-
     try {
       if (serializer != null) {
         filter = bundleContext.createFilter("(&(objectClass=" + Serializer.class.getName() + ")"
@@ -66,8 +67,36 @@ public class ZmqTopicSender extends TopicSender {
     this.serializer = (Serializer) bundleContext.getService(serviceReference);
     this.serializerString = (String) serviceReference.getProperty(Serializer.SERIALIZER);
 
-    this.zmqContext = zmqContext;
     this.zmqSocket = zmqContext.createSocket(ZMQ.PUB);
+
+    boolean secure = Boolean.parseBoolean(bundleContext.getProperty(ZmqConstants.ZMQ_SECURE));
+    if (secure){
+      ZCert serverCert = new ZCert(); //TODO: Load the actual private key
+      serverCert.apply(zmqSocket);
+      zmqSocket.setCurveServer(true);
+    }
+
+    String strMinPort = bundleContext.getProperty(ZmqConstants.ZMQ_BASE_PORT);
+    int minPort = ZmqConstants.ZMQ_BASE_PORT_DEFAULT;
+    if (strMinPort != null){
+      minPort = Integer.parseInt(strMinPort.trim());
+    }
+
+    String strMaxPort = bundleContext.getProperty(ZmqConstants.ZMQ_MAX_PORT);
+    int maxPort = ZmqConstants.ZMQ_MAX_PORT_DEFAULT;
+    if (strMaxPort != null){
+      maxPort = Integer.parseInt(strMaxPort.trim());
+    }
+
+    Random r = new Random();
+
+    int port = r.nextInt(maxPort - minPort + 1) + minPort;
+    this.ep = "tcp://127.0.0.1:" + port;
+    String bindAddress = "tcp://*:" + port;
+
+    this.zmqSocket.bind(bindAddress);
+
+    System.out.println("Bind to address: " + ep);
   }
 
   @Override
@@ -89,12 +118,16 @@ public class ZmqTopicSender extends TopicSender {
 
   @Override
   public void open() {
-    //TODO
+    Dictionary properties = new Hashtable<>();
+    properties.put(Publisher.PUBSUB_TOPIC, topic);
+
+    registration = bundleContext.registerService(Publisher.class, this, properties);
   }
 
   @Override
   public void close() {
-    //TODO
+    tracker.close();
+    registration.unregister();
   }
 
   @Override
@@ -109,17 +142,16 @@ public class ZmqTopicSender extends TopicSender {
 
   @Override
   public void addPublisherEndpoint(Map<String, String> endpoint) {
-    //TODO
+    // Not needed for a publisher
   }
 
   @Override
   public void removePublisherEndpoint(Map<String, String> endpoint) {
-    //TODO
+    // Not needed for a publisher
   }
 
   @Override
   public boolean isActive() {
-    //TODO: x
     return !publishers.isEmpty();
   }
 
@@ -136,7 +168,7 @@ public class ZmqTopicSender extends TopicSender {
 
   @Override
   public void ungetService(Bundle bundle, ServiceRegistration<Publisher> registration, Publisher service) {
-    //TODO
+    publishers.remove(bundle);
   }
 
 }

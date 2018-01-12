@@ -25,13 +25,14 @@ import org.osgi.service.log.LogService;
 public class Activator extends DependencyActivatorBase{
 
   @Override
-  public void init(BundleContext bundleContext, DependencyManager dependencyManager) throws Exception {
+  public void init(BundleContext context, DependencyManager manager) throws Exception {
+
     String[] objectClass = new String[] {Serializer.class.getName()};
     Dictionary<String, Object> properties = new Hashtable<String, Object>();
     properties.put(Serializer.SERIALIZER, JacksonSerializer.SERIALIZER_JACKSON);
 
-    dependencyManager.add(
-        dependencyManager.createComponent()
+    manager.add(
+        manager.createComponent()
           .setInterface(objectClass, properties)
           .setImplementation(JacksonSerializer.class)
           .add(createServiceDependency()
@@ -41,7 +42,7 @@ public class Activator extends DependencyActivatorBase{
   }
 
   @Override
-  public void destroy(BundleContext arg0, DependencyManager arg1) throws Exception {
+  public void destroy(BundleContext context, DependencyManager manager) throws Exception {
     // TODO Auto-generated method stub
     
   }

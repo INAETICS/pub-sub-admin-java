@@ -21,6 +21,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
 import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,12 +37,14 @@ public class ZmqTopicReceiver extends TopicReceiver {
   private ZContext zmqContext;
   private Map<String, String> zmqProperties;
   private final String topic;
+  private ZMQ.Socket socket;
 
   public ZmqTopicReceiver(ZContext zmqContext, Map<String, String> zmqProperties, String topic) {
 
     this.zmqContext = zmqContext;
     this.zmqProperties = zmqProperties;
     this.topic = topic;
+    this.socket = zmqContext.createSocket(ZMQ.SUB);
 
     //TODO
 
@@ -75,12 +78,12 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   @Override
   public void addSubscriberEndpoint(Map<String, String> endpoint) {
-    //TODO
+    // Not needed for a subscriber
   }
 
   @Override
   public void removeSubscriberEndpoint(Map<String, String> endpoint) {
-    //TODO
+    // Not needed for a subscriber
   }
 
   @Override

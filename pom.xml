@@ -196,6 +196,7 @@
         <module>org.inaetics.pubsub.psa.zeromq</module>
         <module>org.inaetics.pubsub.serialization.json</module>
         <module>org.inaetics.pubsub.examples</module>
+        <module>org.inaetics.pubsub.deploy</module>
     </modules>
 
 </project>

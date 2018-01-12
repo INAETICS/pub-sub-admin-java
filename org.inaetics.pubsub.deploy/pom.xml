@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.inaetics.pubsub</groupId>
+        <artifactId>parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>org.inaetics.pubsub.deploy</artifactId>
+    <name>INAETICS PubSub Deploy</name>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>biz.aQute.bnd</groupId>
+                <artifactId>bnd-maven-plugin</artifactId>
+                <version>${bnd-maven-plugin.version}</version>
+                <configuration>
+                    <bnd combine.self="override"><![CDATA[
+#Always export packages with a @Version annotation
+-exportcontents: ${packages;ANNOTATED;org.osgi.annotation.versioning.Version}
+#Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
+]]>
+                    </bnd>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>biz.aQute.bnd</groupId>
+                <artifactId>bnd-export-maven-plugin</artifactId>
+                <version>${bnd-maven-plugin.version}</version>
+                <configuration>
+                    <failOnChanges>false</failOnChanges>
+                    <resolve>false</resolve>
+                    <bndruns>
+                        <bndrun>launch.kafka.publisher.bndrun</bndrun>
+                        <bndrun>launch.zmq.publisher.bndrun</bndrun>
+                        <bndrun>launch.zmq.subscriber.bndrun</bndrun>
+                    </bndruns>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>export</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-clean-plugin</artifactId>
+                <version>${maven-clean-plugin.version}</version>
+                <configuration>
+                    <filesets>
+                        <fileset>
+                            <directory>.</directory>
+                            <includes>
+                                <include>generated</include>
+                                <include>bin</include>
+                            </includes>
+                            <followSymlinks>false</followSymlinks>
+                        </fileset>
+                    </filesets>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.spi</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.discovery.etcd</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.serialization.json</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.topologymanager</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.psa.kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.psa.zeromq</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.examples.pubsub.publisher</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.examples.pubsub.subscriber</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+</project>

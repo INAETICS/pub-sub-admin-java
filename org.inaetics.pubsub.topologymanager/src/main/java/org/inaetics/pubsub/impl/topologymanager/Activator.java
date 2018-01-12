@@ -30,21 +30,28 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
+  private PubSubTopologyManager topologyManager;
+
   @Override
   public void init(BundleContext context, DependencyManager manager) {
 
-    String[] objectClass = new String[] {PubSubTopologyManager.class.getName(),
-        ListenerHook.class.getName(), EventHandler.class.getName(), ManagedService.class.getName()};
+    topologyManager = new PubSubTopologyManager();
+
+    String[] objectClass = new String[] {
+            PubSubTopologyManager.class.getName(),
+            ListenerHook.class.getName(), EventHandler.class.getName(), ManagedService.class.getName()
+    };
 
     String[] topics = new String[] {org.inaetics.pubsub.spi.utils.Constants.DISCOVERY_EVENT};
 
     Dictionary<String, Object> properties = new Hashtable<String, Object>();
     properties.put(Constants.SERVICE_PID, PubSubTopologyManager.SERVICE_PID);
     properties.put(EventConstants.EVENT_TOPIC, topics);
+
     manager.add(
         manager.createComponent()
         .setInterface(objectClass, properties)
-        .setImplementation(PubSubTopologyManager.class)
+        .setImplementation(topologyManager)
             .add(createServiceDependency()
                 .setService(PubSubAdmin.class)
                 .setRequired(true)
@@ -60,9 +67,20 @@ public class Activator extends DependencyActivatorBase {
   }
 
   @Override
-  public void destroy(BundleContext arg0, DependencyManager arg1) throws Exception {
-    // TODO Auto-generated method stub
-    
+  public void start(BundleContext context) throws Exception {
+    super.start(context);
+    topologyManager.start();
+  }
+
+  @Override
+  public void stop(BundleContext context) throws Exception {
+    super.stop(context);
+    topologyManager.stop();
+  }
+
+  @Override
+  public void destroy(BundleContext context, DependencyManager arg1) throws Exception {
+    topologyManager.destroy();
   }
   
 }

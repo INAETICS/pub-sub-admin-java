@@ -44,11 +44,11 @@ public class ZmqSubscriber extends Thread {
 
   private ZMQ.Socket socket;
 
-  public ZmqSubscriber(Map<String, String> zmqProperties, String topic, String serializer, ZContext zmqContext) {
+  public ZmqSubscriber(Map<String, String> zmqProperties, String topic, String serializer, ZMQ.Socket socket) {
     this.zmqProperties = zmqProperties;
     this.topic = topic;
 
-    this.socket = zmqContext.createSocket(ZMQ.SUB);
+    this.socket = socket;
 
     try {
       ServiceTracker tracker = new ServiceTracker<>(bundleContext,

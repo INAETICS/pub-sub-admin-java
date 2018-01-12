@@ -8,8 +8,12 @@
 
 -runproperties: \
   org.osgi.service.http.port=9002,\
-  org.inaetics.pubsub.discovery.etcd.connecturl=http://127.0.0.1:4001,\
-  org.inaetics.pubsub.discovery.etcd.rootpath=/pubsub
+  org.inaetics.pubsub.discovery.etcd.connecturl=http://127.0.0.1:2379,\
+  org.inaetics.pubsub.discovery.etcd.rootpath=/pubsub,\
+  org.inaetics.pubsub.psa.zeromq.bindport.min=5501,\
+  org.inaetics.pubsub.psa.zeromq.bindport.max=6000,\
+  org.inaetics.pubsub.psa.zeromq.threads=1,\
+  org.inaetics.pubsub.psa.zeromq.secure=false
 
 -runbundles: \
   osgi.annotation;version=latest,\
@@ -42,7 +46,8 @@
   org.zeromq.jnacl;version=0.1.0,\
   org.inaetics.pubsub.api,\
   org.inaetics.pubsub.spi,\
+  org.inaetics.pubsub.topologymanager,\
   org.inaetics.pubsub.discovery.etcd,\
-  org.inaetics.pubsub.psa.zeromq,\
   org.inaetics.pubsub.serialization.json,\
-  org.inaetics.pubsub.topologymanager
+  org.inaetics.pubsub.psa.zeromq,\
+  org.inaetics.pubsub.examples.pubsub.publisher

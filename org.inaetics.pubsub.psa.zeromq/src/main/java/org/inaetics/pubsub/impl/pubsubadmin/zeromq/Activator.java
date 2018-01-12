@@ -34,18 +34,22 @@ public class Activator extends DependencyActivatorBase {
 
     try {
 
+      String[] objectClass = new String[] {PubSubAdmin.class.getName()};
       Dictionary<String, Object> properties = new Hashtable<String, Object>();
       properties.put(Constants.SERVICE_PID, ZmqPubSubAdmin.SERVICE_PID);
 
       manager.add(
           manager.createComponent()
-            .setInterface(PubSubAdmin.class.getName(), properties)
+            .setInterface(objectClass, properties)
             .setImplementation(admin)
             .add(createServiceDependency()
                 .setService(LogService.class)
                 .setRequired(false))
-            .add(createConfigurationDependency().setPid(ZmqPubSubAdmin.SERVICE_PID))
-            );
+            .add(createConfigurationDependency()
+                .setPid(ZmqPubSubAdmin.SERVICE_PID)
+            )
+      );
+
     } catch (Exception e) {
       e.printStackTrace();
     }

@@ -61,22 +61,22 @@ public class KafkaPubSubAdmin implements PubSubAdmin, ManagedService {
 
   @Init
   void init(){
-    System.out.println("INITIALIZED " + this.getClass().getSimpleName());
+    System.out.println("INITIALIZED " + this.getClass().getName());
   }
 
   @Start
   protected final void start() throws Exception {
-    System.out.println("STARTED " + this.getClass().getSimpleName());
+    System.out.println("STARTED " + this.getClass().getName());
   }
 
   @Stop
   protected final void stop() throws Exception {
-    System.out.println("STOPPED " + this.getClass().getSimpleName());
+    System.out.println("STOPPED " + this.getClass().getName());
   }
 
   @Destroy
   void destroy() {
-    System.out.println("DESTROYED " + this.getClass().getSimpleName());
+    System.out.println("DESTROYED " + this.getClass().getName());
   }
 
   private Map<String, String> getPublisherProperties(Bundle bundle, Filter filter) {
@@ -132,7 +132,7 @@ public class KafkaPubSubAdmin implements PubSubAdmin, ManagedService {
 
   @Override
   public synchronized void updated(Dictionary<String, ?> properties) throws ConfigurationException {
-    System.out.println("UPDATED " + this.getClass().getSimpleName());
+    System.out.println("UPDATED " + this.getClass().getName());
 
     if (properties != null) {
       defaultPublisherProperties = new HashMap<>();

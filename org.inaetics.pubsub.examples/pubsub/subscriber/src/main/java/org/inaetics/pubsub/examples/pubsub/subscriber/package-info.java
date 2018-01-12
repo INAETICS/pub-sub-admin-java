@@ -11,11 +11,5 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.impl.discovery.etcd;
-
-import com.fasterxml.jackson.databind.JsonNode;
-
-public interface EtcdCallback {
-  public void onResult(JsonNode result);
-  public void onException(Exception exception);
-}
+@org.osgi.annotation.versioning.Version("1.0.0")
+package org.inaetics.pubsub.examples.pubsub.subscriber;

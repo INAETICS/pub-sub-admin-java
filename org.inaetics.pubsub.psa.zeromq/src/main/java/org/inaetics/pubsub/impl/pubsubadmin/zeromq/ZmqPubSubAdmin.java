@@ -33,9 +33,7 @@ import org.inaetics.pubsub.spi.pubsubadmin.TopicSender;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.Filter;
-import org.osgi.framework.ServiceReference;
+import org.osgi.framework.*;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.log.LogService;
@@ -47,32 +45,38 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   public static final String SERVICE_PID = ZmqPubSubAdmin.class.getName();
 
+  private BundleContext bundleContext = FrameworkUtil.getBundle(ZmqPubSubAdmin.class).getBundleContext();
+
   private Map<String, String> defaultPublisherProperties = new HashMap<>();
   private Map<String, String> defaultSubscriberProperties = new HashMap<>();
 
   private static final Set<String> zmqProperties = new HashSet<>(Arrays.asList(
-      ("PSA_ZMQ_DEFAULT_BASE_PORT, " +
-              "PSA_ZMQ_DEFAULT_MAX_PORT, " +
-              "PSA_NR_ZMQ_THREADS," +
-              "PSA_ZMQ_SECURE").split(",")));
+          ZmqConstants.ZMQ_BASE_PORT,
+          ZmqConstants.ZMQ_MAX_PORT,
+          ZmqConstants.ZMQ_NR_OF_THREADS,
+          ZmqConstants.ZMQ_SECURE
+  ));
   private static final Set<String> generalProperties =
       new HashSet<>(Arrays.asList("serializer,pubsub.topic,pubsub.scope".split(",")));
   
   private volatile LogService m_LogService;
-
-  private int basePort = ZmqConstants.ZMQ_BASE_PORT_DEFAULT;
-  private int maxPort = ZmqConstants.ZMQ_MAX_PORT_DEFAULT;
-  private int nrOfThreads;
-  private boolean secure;
 
   private ZContext zmqContext;
   private ZAuth zmqAuth;
 
   @Init
   void init() {
-    System.out.println("INITIALIZED " + this.getClass().getSimpleName());
+    System.out.println("INITIALIZED " + this.getClass().getName());
 
-    zmqContext = new ZContext(nrOfThreads);
+    String strNrOfIOThreads = bundleContext.getProperty(ZmqConstants.ZMQ_NR_OF_THREADS);
+    int nrOfIOThreads = 1;
+    if (strNrOfIOThreads != null){
+      nrOfIOThreads = Integer.parseInt(strNrOfIOThreads.trim());
+    }
+
+    zmqContext = new ZContext(nrOfIOThreads);
+
+    boolean secure = Boolean.parseBoolean(bundleContext.getProperty(ZmqConstants.ZMQ_SECURE));
 
     if (secure){
       zmqAuth = new ZAuth(zmqContext);
@@ -84,17 +88,17 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   @Start
   protected final void start() throws Exception {
-    System.out.println("STARTED " + this.getClass().getSimpleName());
+    System.out.println("STARTED " + this.getClass().getName());
   }
 
   @Stop
   protected final void stop() throws Exception {
-    System.out.println("STOPPED " + this.getClass().getSimpleName());
+    System.out.println("STOPPED " + this.getClass().getName());
   }
 
   @Destroy
   void destroy() {
-    System.out.println("DESTROYED " + this.getClass().getSimpleName());
+    System.out.println("DESTROYED " + this.getClass().getName());
 
     if (zmqAuth != null){
       zmqAuth.destroy();
@@ -156,24 +160,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
   @Override
   public synchronized void updated(Dictionary<String, ?> cnf) throws ConfigurationException {
     if (cnf != null) {
-      System.out.println("UPDATED " + this.getClass().getSimpleName());
-
-      basePort = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_BASE_PORT)));
-      if (basePort <= 0){
-        basePort = ZmqConstants.ZMQ_BASE_PORT_DEFAULT;
-      }
-
-      maxPort = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_MAX_PORT)));
-      if (maxPort <= 0){
-        maxPort = ZmqConstants.ZMQ_MAX_PORT_DEFAULT;
-      }
-
-      nrOfThreads = Integer.parseInt(String.valueOf(cnf.get(ZmqConstants.ZMQ_NR_OF_THREADS)));
-      if (nrOfThreads < 1){
-        nrOfThreads = 1;
-      }
-
-      secure = Boolean.parseBoolean(String.valueOf(cnf.get(ZmqConstants.ZMQ_SECURE)));
+      System.out.println("UPDATED " + this.getClass().getName());
 
       defaultPublisherProperties = new HashMap<>();
       defaultSubscriberProperties = new HashMap<>();

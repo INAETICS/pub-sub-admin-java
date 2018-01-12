@@ -45,8 +45,10 @@ public class Activator extends DependencyActivatorBase {
             .add(createServiceDependency()
                 .setService(LogService.class)
                 .setRequired(false))
-            .add(createConfigurationDependency().setPid(KafkaPubSubAdmin.SERVICE_PID))
-          );
+            .add(createConfigurationDependency()
+                .setPid(KafkaPubSubAdmin.SERVICE_PID)
+            )
+      );
     } catch (Exception e) {
       e.printStackTrace();
     }
