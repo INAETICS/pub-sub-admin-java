@@ -1,9 +1,0 @@
-Manifest-Version: 1.0
-Archiver-Version: Plexus Archiver
-Built-By: tbernard
-Created-By: Apache Maven 3.5.0
-Build-Jdk: 1.8.0_101
-Bundle-SymbolicName: org.zeromq.jnacl
-Bundle-Version: 0.1.0
-Export-Package: com.neilalexander.jnacl.crypto;version=0.1.0,
- com.neilalexander.jnacl;version=0.1.0
