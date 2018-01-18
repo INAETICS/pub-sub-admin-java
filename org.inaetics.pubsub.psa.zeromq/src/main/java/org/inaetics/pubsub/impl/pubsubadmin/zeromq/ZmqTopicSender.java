@@ -41,6 +41,7 @@ public class ZmqTopicSender extends TopicSender {
 
   private ZMQ.Socket zmqSocket;
   private String ep;
+  private String bindAddress;
 
   public ZmqTopicSender(ZContext zmqContext, Map<String, String> zmqProperties, String topic, String serializer) {
 
@@ -92,11 +93,8 @@ public class ZmqTopicSender extends TopicSender {
 
     int port = r.nextInt(maxPort - minPort + 1) + minPort;
     this.ep = "tcp://127.0.0.1:" + port;
-    String bindAddress = "tcp://*:" + port;
+    this.bindAddress = "tcp://*:" + port;
 
-    this.zmqSocket.bind(bindAddress);
-
-    System.out.println("Bind to address: " + ep);
   }
 
   @Override
@@ -112,6 +110,7 @@ public class ZmqTopicSender extends TopicSender {
     properties.put(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_TYPE, Constants.PUBLISHER);
     properties.put(Serializer.SERIALIZER, serializerString);
     properties.put(PUBSUB_ADMIN_TYPE, ZmqConstants.ZMQ);
+    properties.put(Publisher.PUBSUB_ENDPOINT_URL, this.ep);
 
     return properties;
   }
@@ -121,11 +120,15 @@ public class ZmqTopicSender extends TopicSender {
     Dictionary properties = new Hashtable<>();
     properties.put(Publisher.PUBSUB_TOPIC, topic);
 
+    this.zmqSocket.bind(bindAddress);
+
     registration = bundleContext.registerService(Publisher.class, this, properties);
   }
 
   @Override
   public void close() {
+    this.zmqSocket.unbind(bindAddress);
+
     tracker.close();
     registration.unregister();
   }

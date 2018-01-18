@@ -13,15 +13,19 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
+import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
 import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
 import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
+import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
+import org.zeromq.ZCert;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
+import zmq.socket.pubsub.Pub;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,11 +37,15 @@ public class ZmqTopicReceiver extends TopicReceiver {
   private final BundleContext bundleContext = FrameworkUtil.getBundle(ZmqTopicReceiver.class).getBundleContext();
 
   private final Set<Subscriber> subscribers = new HashSet<>();
+  private final Set<ZmqSubscriber> zmqSubscribers = new HashSet<>();
+  private final Map<String, Map<String, String>> zmqTopicsToEndpoint = new HashMap<>();
 
   private ZContext zmqContext;
   private Map<String, String> zmqProperties;
   private final String topic;
   private ZMQ.Socket socket;
+
+  private boolean open = false;
 
   public ZmqTopicReceiver(ZContext zmqContext, Map<String, String> zmqProperties, String topic) {
 
@@ -46,7 +54,16 @@ public class ZmqTopicReceiver extends TopicReceiver {
     this.topic = topic;
     this.socket = zmqContext.createSocket(ZMQ.SUB);
 
-    //TODO
+    boolean secure = Boolean.parseBoolean(bundleContext.getProperty(ZmqConstants.ZMQ_SECURE));
+    if (secure){
+      ZCert publicServerCert = new ZCert(); //TODO: Load the actual server public key
+      byte[] serverKey = publicServerCert.getPublicKey();
+
+      ZCert clientCert = new ZCert(); //TODO: Load the actual client private key
+      clientCert.apply(socket);
+
+      socket.setCurveServerKey(serverKey);
+    }
 
   }
 
@@ -68,12 +85,29 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   @Override
   public void open() {
-    //TODO
+    for (String zmqTopic : zmqTopicsToEndpoint.keySet()) {
+      ZmqSubscriber zmqSubscriber = new ZmqSubscriber(zmqProperties, zmqTopic, zmqTopicsToEndpoint.get(zmqTopic).get(Serializer.SERIALIZER), socket);
+
+      String bindUrl = zmqTopicsToEndpoint.get(zmqTopic).get(Publisher.PUBSUB_ENDPOINT_URL);
+      System.out.println("Connecting to : " + zmqTopic + " / " + bindUrl);
+      this.socket.connect(bindUrl);
+      this.socket.subscribe(zmqTopic);
+
+      zmqSubscriber.start();
+      for (Subscriber subscriber : subscribers) {
+        zmqSubscriber.connect(subscriber);
+      }
+      zmqSubscribers.add(zmqSubscriber);
+    }
+    this.open = true;
   }
 
   @Override
   public void close() {
-    //TODO
+    for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
+      zmqSubscriber.stopZmqSubscriber();
+    }
+    this.open = false;
   }
 
   @Override
@@ -88,23 +122,73 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   @Override
   public void addPublisherEndpoint(Map<String, String> endpoint) {
-    //TODO
+    if (endpoint.get(PUBSUB_ADMIN_TYPE).equals(ZmqConstants.ZMQ)
+            && endpoint.get(Publisher.PUBSUB_TOPIC).equals(topic)) {
+
+      String zmqTopic = endpoint.get(Subscriber.PUBSUB_TOPIC);
+      String serializer = endpoint.get(Serializer.SERIALIZER);
+      String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
+
+      if (!zmqTopicsToEndpoint.containsKey(zmqTopic)) {
+        zmqTopicsToEndpoint.put(zmqTopic, endpoint);
+
+        if (open) {
+          System.out.println("Connecting to : " + zmqTopic + " / " + bindUrl);
+          this.socket.connect(bindUrl);
+          this.socket.subscribe(this.topic);
+
+          ZmqSubscriber zmqSubscriber = new ZmqSubscriber(zmqProperties, zmqTopic, serializer, socket);
+
+          for (Subscriber subscriber : subscribers) {
+            zmqSubscriber.connect(subscriber);
+          }
+          zmqSubscribers.add(zmqSubscriber);
+          zmqSubscriber.start();
+        }
+      }
+    }
   }
 
   @Override
   public void removePublisherEndpoint(Map<String, String> endpoint) {
-    //TODO
+    if (endpoint.get(PUBSUB_ADMIN_TYPE).equals(ZmqConstants.ZMQ)
+            && endpoint.get(Publisher.PUBSUB_TOPIC).equals(topic)) {
+
+      String zmqTopic = endpoint.get(Subscriber.PUBSUB_TOPIC);
+      zmqTopicsToEndpoint.remove(zmqTopic);
+
+      for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
+        if (zmqSubscriber.getTopic().equals(zmqTopic)) {
+          zmqSubscriber.stopZmqSubscriber();
+        }
+      }
+
+      String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
+      System.out.println("Disconnecting from : " + zmqTopic + " / " + bindUrl);
+      this.socket.unsubscribe(this.topic);
+      this.socket.disconnect(bindUrl);
+    }
+
   }
 
   @Override
   public void connectSubscriber(ServiceReference reference) {
-    //TODO
-
+    Subscriber subscriber = (Subscriber) bundleContext.getService(reference);
+    subscribers.add(subscriber);
+    for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
+      zmqSubscriber.connect(subscriber);
+    }
+    bundleContext.ungetService(reference);
   }
 
   @Override
   public void disconnectSubscriber(ServiceReference reference) {
-    //TODO
+    Subscriber subscriber = (Subscriber) bundleContext.getService(reference);
+    subscribers.remove(subscriber);
+    for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
+      zmqSubscriber.disconnect(subscriber);
+    }
+    bundleContext.ungetService(reference);
   }
 
   @Override

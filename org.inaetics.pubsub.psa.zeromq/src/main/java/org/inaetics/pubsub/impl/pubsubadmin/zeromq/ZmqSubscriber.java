@@ -20,7 +20,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.util.tracker.ServiceTracker;
-import org.zeromq.ZContext;
+import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
 import java.util.Collections;
@@ -71,22 +71,50 @@ public class ZmqSubscriber extends Thread {
   @Override
   public void run() {
     while (!this.isInterrupted()) {
-      //TODO
+
+      ZFrame headerMsg = ZFrame.recvFrame(this.socket);
+
+      if (headerMsg.hasMore()){
+        ZFrame payloadMsg = ZFrame.recvFrame(this.socket);
+
+        byte[] data = payloadMsg.getData();
+
+        MultipartContainer container = serializer.deserialize(data);
+
+        synchronized (subscribers) {
+          for (BlockingQueue<MultipartContainer> queue : subscribers.values()) {
+            queue.add(container);
+          }
+        }
+
+      }
+
     }
   }
 
-private class SubscriberCaller extends Thread {
+  private class SubscriberCaller extends Thread {
 
-  public SubscriberCaller(Subscriber subscriber, BlockingQueue<MultipartContainer> queue) {
-    //TODO
+    private BlockingQueue<MultipartContainer> queue;
+    private Subscriber subscriber;
+
+    public SubscriberCaller(Subscriber subscriber, BlockingQueue<MultipartContainer> queue) {
+      this.subscriber = subscriber;
+      this.queue = queue;
+    }
+
+    @Override
+    public void run() {
+      while (!this.isInterrupted()) {
+        try {
+          MultipartContainer container = queue.take();
+          subscriber.receive(container.getObjects().get(0), container);
+        } catch (InterruptedException e) {
+          //TODO: Auto-generated catch block
+        }
+      }
+    }
+
   }
-
-  @Override
-  public void run() {
-    //TODO
-  }
-
-}
 
   public void connect(Subscriber subscriber) {
     BlockingQueue<MultipartContainer> queue = new LinkedBlockingQueue<MultipartContainer>();
@@ -111,7 +139,6 @@ private class SubscriberCaller extends Thread {
     for (Thread thread : subscriberCallers.values()) {
       thread.interrupt();
     }
-    this.socket.close();
   }
 
   public String getTopic() {

@@ -169,6 +169,9 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
   @Override
   public void announcePublisher(Map<String, String> properties) {
     publishers.add(properties);
+    System.out.println(getClass().getSimpleName() + " announcePublisher : " +
+            properties.get(Publisher.PUBSUB_TOPIC) + " / " +
+            properties.getOrDefault(Publisher.PUBSUB_ENDPOINT_URL, "No endpoint known"));
     executor.execute(new Runnable() {
       @Override
       public void run() {
@@ -311,7 +314,7 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
         public void run() {
           pubSubChanged(result);
         }
-      }).start();;
+      }).start();
 
     }
 
