@@ -72,7 +72,6 @@ public class DemoPublisher {
 
                 if (publisher != null) {
                     Integer integer = ThreadLocalRandom.current().nextInt(0, 11);
-                    System.out.println("publishing: " + integer);
                     publisher.send(integer);
                 }
                 try {

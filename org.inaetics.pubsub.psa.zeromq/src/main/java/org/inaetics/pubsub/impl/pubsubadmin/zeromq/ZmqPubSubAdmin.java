@@ -65,7 +65,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
   private ZAuth zmqAuth;
 
   @Init
-  void init() {
+  protected final void init() {
     System.out.println("INITIALIZED " + this.getClass().getName());
 
     String strNrOfIOThreads = bundleContext.getProperty(ZmqConstants.ZMQ_NR_OF_THREADS);
@@ -97,7 +97,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
   }
 
   @Destroy
-  void destroy() {
+  protected final void destroy() {
     System.out.println("DESTROYED " + this.getClass().getName());
 
     if (zmqAuth != null){

@@ -24,12 +24,8 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-    private Demo demo;
-
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) {
-
-        demo = new Demo();
 
         try {
 
@@ -40,35 +36,18 @@ public class Activator extends DependencyActivatorBase {
             manager.add(
                     manager.createComponent()
                             .setInterface(objectClass, properties)
-                            .setImplementation(demo)
+                            .setImplementation(Demo.class)
                             .add(createServiceDependency()
                                     .setService(LogService.class)
                                     .setRequired(false))
-                            .add(createConfigurationDependency().setPid(Demo.SERVICE_PID))
+                            .add(createConfigurationDependency()
+                                    .setRequired(false)
+                                    .setPid(Demo.SERVICE_PID))
             );
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        demo.init();
-
-    }
-
-    @Override
-    public void start(BundleContext context) throws Exception {
-        super.start(context);
-        demo.start();
-    }
-
-    @Override
-    public void stop(BundleContext context) throws Exception {
-        super.stop(context);
-        demo.stop();
-    }
-
-    @Override
-    public void destroy(BundleContext context, DependencyManager manager) throws Exception {
-        demo.destroy();
     }
 
 }

@@ -26,43 +26,29 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-  private EtcdDiscoveryManager etcdDiscoveryManager;
-
   @Override
   public void init(BundleContext bundleContext, DependencyManager manager) throws Exception {
 
-    etcdDiscoveryManager = new EtcdDiscoveryManager();
+    String[] objectClass = new String[] {
+            DiscoveryManager.class.getName(), ManagedService.class.getName()
+    };
 
-    String[] objectClass = new String[] {DiscoveryManager.class.getName(), ManagedService.class.getName()};
     Dictionary<String, Object> properties = new Hashtable<String, Object>();
     properties.put(Constants.SERVICE_PID, EtcdDiscoveryManager.SERVICE_PID);
 
-    manager.add(manager.createComponent().setInterface(objectClass, properties)
-        .setImplementation(etcdDiscoveryManager)
-        .add(createServiceDependency()
-            .setService(LogService.class)
-            .setRequired(false))
-        .add(createConfigurationDependency().setPid(EtcdDiscoveryManager.SERVICE_PID))
-        );
-
-    etcdDiscoveryManager.init();
+    manager.add(
+        manager.createComponent()
+          .setInterface(objectClass, properties)
+          .setImplementation(EtcdDiscoveryManager.class)
+          .setCallbacks("init", "start", "stop", "destroy")
+          .add(createServiceDependency()
+              .setService(LogService.class)
+              .setRequired(false))
+          .add(createConfigurationDependency()
+              .setRequired(false)
+              .setPid(EtcdDiscoveryManager.SERVICE_PID))
+    );
 
   }
 
-  @Override
-  public void start(BundleContext context) throws Exception {
-    super.start(context);
-    etcdDiscoveryManager.start();
-  }
-
-  @Override
-  public void stop(BundleContext context) throws Exception {
-    super.stop(context);
-    etcdDiscoveryManager.stop();
-  }
-
-  @Override
-  public void destroy(BundleContext arg0, DependencyManager arg1) throws Exception {
-    etcdDiscoveryManager.destroy();
-  }
 }

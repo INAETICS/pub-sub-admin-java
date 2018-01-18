@@ -90,6 +90,7 @@ public class PubSubTopologyManager implements ListenerHook, ServiceListener, Eve
         if (info.getFilter() != null) {
           Filter filter = FrameworkUtil.createFilter(info.getFilter());
           if (isFilterForPublisher(filter)) {
+            System.out.println(this.getClass().getSimpleName() + " added publisher " + filter);
 
             if (!info.isRemoved()) {
               Bundle user = info.getBundleContext().getBundle();

@@ -8,12 +8,8 @@
 
 -runproperties: \
   org.osgi.service.http.port=9002,\
-  org.inaetics.pubsub.discovery.etcd.connecturl=http://127.0.0.1:2379,\
-  org.inaetics.pubsub.discovery.etcd.rootpath=/pubsub,\
-  org.inaetics.pubsub.psa.zeromq.bindport.min=5501,\
-  org.inaetics.pubsub.psa.zeromq.bindport.max=6000,\
-  org.inaetics.pubsub.psa.zeromq.threads=1,\
-  org.inaetics.pubsub.psa.zeromq.secure=false
+  org.inaetics.pubsub.discovery.etcd.connecturl=http://127.0.0.1:4001,\
+  org.inaetics.pubsub.discovery.etcd.rootpath=/pubsub
 
 -runbundles: \
   osgi.annotation;version=latest,\
@@ -43,12 +39,12 @@
   org.apache.httpcomponents.httpclient;version=4.5.3,\
   org.apache.httpcomponents.httpcore;version=4.4.6,\
   org.apache.commons.logging;version=1.2,\
-  org.zeromq.jeromq;version=0.4.3,\
-  org.zeromq.jnacl;version=0.1.1.SNAPSHOT,\
+  org.apache.kafka.kafka_2.12;version=1.0.0,\
+  org.apache.kafka.kafka-clients;version=1.0.0,\
   org.inaetics.pubsub.api,\
   org.inaetics.pubsub.spi,\
   org.inaetics.pubsub.topologymanager,\
   org.inaetics.pubsub.discovery.etcd,\
   org.inaetics.pubsub.serialization.json,\
-  org.inaetics.pubsub.psa.zeromq,\
+  org.inaetics.pubsub.psa.kafka,\
   org.inaetics.pubsub.examples.pubsub.subscriber

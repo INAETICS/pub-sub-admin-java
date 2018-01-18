@@ -30,15 +30,10 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-  private PubSubTopologyManager topologyManager;
-
   @Override
   public void init(BundleContext context, DependencyManager manager) {
 
-    topologyManager = new PubSubTopologyManager();
-
     String[] objectClass = new String[] {
-            PubSubTopologyManager.class.getName(),
             ListenerHook.class.getName(), EventHandler.class.getName(), ManagedService.class.getName()
     };
 
@@ -51,36 +46,21 @@ public class Activator extends DependencyActivatorBase {
     manager.add(
         manager.createComponent()
         .setInterface(objectClass, properties)
-        .setImplementation(topologyManager)
+        .setImplementation(PubSubTopologyManager.class)
+            .setCallbacks(null, "start", "stop", "destroy")
             .add(createServiceDependency()
                 .setService(PubSubAdmin.class)
-                .setRequired(true)
+                .setRequired(false)
                 .setCallbacks("adminAdded", "adminRemoved"))
             .add(createServiceDependency()
                 .setService(DiscoveryManager.class)
-                .setRequired(true)
+                .setRequired(false)
                 .setCallbacks("discoveryManagerAdded", "discoveryManagerRemoved"))
             .add(createServiceDependency()
                 .setService(LogService.class)
                 .setRequired(false))
      );
-  }
 
-  @Override
-  public void start(BundleContext context) throws Exception {
-    super.start(context);
-    topologyManager.start();
-  }
-
-  @Override
-  public void stop(BundleContext context) throws Exception {
-    super.stop(context);
-    topologyManager.stop();
-  }
-
-  @Override
-  public void destroy(BundleContext context, DependencyManager arg1) throws Exception {
-    topologyManager.destroy();
   }
   
 }

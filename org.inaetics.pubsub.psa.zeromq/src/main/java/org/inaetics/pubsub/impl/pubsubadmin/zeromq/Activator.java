@@ -25,12 +25,8 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-  private ZmqPubSubAdmin admin;
-
   @Override
   public void init(BundleContext bundleContext, DependencyManager manager) {
-
-    admin = new ZmqPubSubAdmin();
 
     try {
 
@@ -41,11 +37,13 @@ public class Activator extends DependencyActivatorBase {
       manager.add(
           manager.createComponent()
             .setInterface(objectClass, properties)
-            .setImplementation(admin)
+            .setImplementation(ZmqPubSubAdmin.class)
+            .setCallbacks("init", "start", "stop", "destroy")
             .add(createServiceDependency()
                 .setService(LogService.class)
                 .setRequired(false))
             .add(createConfigurationDependency()
+                .setRequired(false)
                 .setPid(ZmqPubSubAdmin.SERVICE_PID)
             )
       );
@@ -54,25 +52,6 @@ public class Activator extends DependencyActivatorBase {
       e.printStackTrace();
     }
 
-    admin.init();
-
-  }
-
-  @Override
-  public void start(BundleContext context) throws Exception {
-    super.start(context);
-    admin.start();
-  }
-
-  @Override
-  public void stop(BundleContext context) throws Exception {
-    super.stop(context);
-    admin.stop();
-  }
-
-  @Override
-  public void destroy(BundleContext context, DependencyManager manager) throws Exception {
-    admin.destroy();
   }
 
 }

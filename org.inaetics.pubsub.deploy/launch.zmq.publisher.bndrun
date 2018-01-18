@@ -29,6 +29,7 @@
   org.apache.felix.log;version='[1.0.1,1.1)', \
   org.apache.felix.dependencymanager;version=4.4.1, \
   org.apache.felix.dependencymanager.annotation;version=4.2.1, \
+  org.apache.felix.dependencymanager.shell;version=4.0.6,\
   biz.aQute.bndlib;version=2.4.1, \
   org.apache.felix.scr;version='[2.0.12,3)', \
   org.osgi.service.remoteserviceadmin;version='[1.1.0,1.2)', \
