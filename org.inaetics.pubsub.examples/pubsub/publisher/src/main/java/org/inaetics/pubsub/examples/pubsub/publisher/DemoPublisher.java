@@ -83,8 +83,8 @@ public class DemoPublisher {
             while (!this.isInterrupted()) {
 
                 if (publisher != null) {
-                    location.setPositionLat(ThreadLocalRandom.current().nextDouble(-90.0F, 90.0F));
-                    location.setPositionLon(ThreadLocalRandom.current().nextDouble(-180.0F, 180.0F));
+                    location.setPositionLat(ThreadLocalRandom.current().nextDouble(Location.MIN_LAT, Location.MAX_LAT));
+                    location.setPositionLon(ThreadLocalRandom.current().nextDouble(Location.MIN_LON, Location.MAX_LON));
 
                     int nrChar = ThreadLocalRandom.current().nextInt(5, 100000);
                     String[] dataArr = new String[nrChar];

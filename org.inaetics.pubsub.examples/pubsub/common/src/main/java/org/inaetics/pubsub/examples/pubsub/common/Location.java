@@ -4,6 +4,11 @@ import java.io.Serializable;
 
 public class Location implements Serializable {
 
+    public static final double MIN_LAT = -90.0F;
+    public static final double MAX_LAT = 90.0F;
+    public static final double MIN_LON = -180.0F;
+    public static final double MAX_LON = 180.0F;
+
     private String name;
     private String description;
     private String extra;

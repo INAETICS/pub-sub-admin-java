@@ -49,5 +49,5 @@
   org.inaetics.pubsub.discovery.etcd,\
   org.inaetics.pubsub.serialization.json,\
   org.inaetics.pubsub.psa.zeromq,\
-  org.inaetics.pubsub.examples.pubsub.common,\
-  org.inaetics.pubsub.examples.pubsub.subscriber
+  org.inaetics.pubsub.examples.mp_pubsub.common,\
+  org.inaetics.pubsub.examples.mp_pubsub.subscriber

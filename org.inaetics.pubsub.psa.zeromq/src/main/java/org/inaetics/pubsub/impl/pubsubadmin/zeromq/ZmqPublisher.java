@@ -47,14 +47,8 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
     boolean objectAdded = false;
 
-    if ((flags & (Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG)) > 0) {
-      //Normal send case
-      MultipartContainer container = new MultipartContainer();
-      container.addObject(msg);
-      send_pubsub_msg(serializer.serialize(container), true);
-    } else {
-
-      if ((flags & Publisher.PUBLISHER_FIRST_MSG) > 0) {
+    switch(flags){
+      case Publisher.PUBLISHER_FIRST_MSG:
         if (multipartContainer == null) {
           multipartContainer = new MultipartContainer();
           multipartContainer.addObject(msg);
@@ -62,28 +56,38 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
         } else {
           throw new MultipartException("Can't have 2 first messages in a multipart send.");
         }
-      }
+        break;
 
-      if (multipartContainer == null) {
-        throw new MultipartException("No first message sent");
-      }
-
-      if ((flags & Publisher.PUBLISHER_PART_MSG) > 0) {
+      case Publisher.PUBLISHER_PART_MSG:
+        if (multipartContainer == null) {
+          throw new MultipartException("No first message sent");
+        }
         if (!objectAdded) {
           multipartContainer.addObject(msg);
           objectAdded = true;
         }
-      }
 
-      if ((flags & Publisher.PUBLISHER_LAST_MSG) > 0) {
+        break;
+
+      case Publisher.PUBLISHER_LAST_MSG:
         if (!objectAdded) {
           multipartContainer.addObject(msg);
           objectAdded = true;
         }
         send_pubsub_msg(serializer.serialize(multipartContainer), true);
         multipartContainer = null;
-      }
 
+        break;
+
+      case Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG: //Normal send case
+        MultipartContainer container = new MultipartContainer();
+        container.addObject(msg);
+        send_pubsub_msg(serializer.serialize(container), true);
+        break;
+
+      default:
+        System.out.println(this.getClass().getSimpleName() + ": ERROR: Invalid MP flags combination");
+        break;
     }
 
   }

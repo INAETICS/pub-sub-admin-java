@@ -1,16 +1,13 @@
-package org.inaetics.pubsub.examples.pubsub.subscriber;
+package org.inaetics.pubsub.examples.mp_pubsub.subscriber;
 
 import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
-import org.inaetics.pubsub.examples.pubsub.common.Location;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 
-import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.List;
 
 @Component
 public class Demo {
@@ -19,16 +16,16 @@ public class Demo {
 
     private BundleContext bundleContext = FrameworkUtil.getBundle(Demo.class).getBundleContext();
     private ServiceRegistration registration;
-    private DemoSubscriber subscriber;
+    private DemoMpSubscriber subscriber;
     private String topic;
 
     @Init
     protected final void init(){
         System.out.println("INITIALIZED " + this.getClass().getName());
 
-        this.topic = "testTopic"; //TODO: Determine using message descriptor ??
+        this.topic = "testMpTopic"; //TODO: Determine using message descriptor ??
 
-        this.subscriber = new DemoSubscriber(this.topic);
+        this.subscriber = new DemoMpSubscriber(this.topic);
     }
 
     @Start

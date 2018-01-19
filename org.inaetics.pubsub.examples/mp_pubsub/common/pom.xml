@@ -5,13 +5,12 @@
 
     <parent>
         <groupId>org.inaetics.pubsub</groupId>
-        <artifactId>parent</artifactId>
+        <artifactId>org.inaetics.pubsub.examples.mp_pubsub</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>org.inaetics.pubsub.examples</artifactId>
-    <name>INAETICS PubSub Examples</name>
-    <packaging>pom</packaging>
+    <artifactId>org.inaetics.pubsub.examples.mp_pubsub.common</artifactId>
+    <name>INAETICS PubSub Examples - MP Pubsub Common</name>
 
     <build>
         <plugins>
@@ -45,18 +44,5 @@
             </plugin>
         </plugins>
     </build>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
-
-    <modules>
-        <module>pubsub</module>
-        <module>mp_pubsub</module>
-    </modules>
 
 </project>
