@@ -2,6 +2,7 @@ package org.inaetics.pubsub.examples.pubsub.subscriber;
 
 import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
+import org.inaetics.pubsub.examples.pubsub.common.Location;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
@@ -18,7 +19,7 @@ public class Demo {
 
     private BundleContext bundleContext = FrameworkUtil.getBundle(Demo.class).getBundleContext();
     private ServiceRegistration registration;
-    private DemoSubscriber subscriber = new DemoSubscriber();
+    private DemoSubscriber subscriber;
     private String topic;
 
     @Init
@@ -26,6 +27,8 @@ public class Demo {
         System.out.println("INITIALIZED " + this.getClass().getName());
 
         this.topic = "testTopic"; //TODO: Determine using message descriptor ??
+
+        this.subscriber = new DemoSubscriber(this.topic);
     }
 
     @Start
@@ -50,8 +53,8 @@ public class Demo {
     }
 
     //TODO: Method not called yet
-    public synchronized List<Integer> getBuffer(){
-        List<Integer> buffer = new ArrayList<>();
+    public synchronized List<Location> getBuffer(){
+        List<Location> buffer = new ArrayList<>();
         subscriber.queue.drainTo(buffer);
         return buffer;
 

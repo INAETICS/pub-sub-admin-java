@@ -40,7 +40,6 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
     container.addObject(msg);
     send_pubsub_msg(serializer.serialize(container), true);
 
-    System.out.println("SEND: " + msg);
   }
 
   @Override

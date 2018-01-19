@@ -2,7 +2,9 @@ package org.inaetics.pubsub.examples.pubsub.publisher;
 
 import org.apache.felix.dm.annotation.api.*;
 import org.apache.felix.dm.tracker.ServiceTracker;
+import org.apache.felix.framework.util.FelixConstants;
 import org.inaetics.pubsub.api.pubsub.Publisher;
+import org.inaetics.pubsub.examples.pubsub.common.Location;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkUtil;
@@ -20,11 +22,16 @@ public class DemoPublisher {
     private volatile Publisher publisher;
     private volatile PublishThread publishThread;
     private String topic;
+    private Location location;
 
     @Init
     protected final void init(){
         System.out.println("INITIALIZED " + this.getClass().getName());
         this.topic = "testTopic"; //TODO: Determine using message descriptor ??
+
+        this.location = new Location();
+        this.location.setName("Bundle#" + bundleContext.getBundle().getBundleId());
+        this.location.setExtra("DONT PANIC");
     }
 
     @Start
@@ -66,13 +73,38 @@ public class DemoPublisher {
     }
 
     private class PublishThread extends Thread {
+
+        PublishThread(){
+            location.setDescription("fw-" + bundleContext.getProperty(FelixConstants.FRAMEWORK_UUID)  + " [TID=" + this.getId() + "]");
+        }
+
         @Override
         public void run() {
             while (!this.isInterrupted()) {
 
                 if (publisher != null) {
-                    Integer integer = ThreadLocalRandom.current().nextInt(0, 11);
-                    publisher.send(integer);
+                    location.setPositionLat(ThreadLocalRandom.current().nextDouble(-90.0F, 90.0F));
+                    location.setPositionLon(ThreadLocalRandom.current().nextDouble(-180.0F, 180.0F));
+
+                    int nrChar = ThreadLocalRandom.current().nextInt(5, 100000);
+                    String[] dataArr = new String[nrChar];
+
+                    for (int i = 0; i < nrChar; i++){
+                        dataArr[i] = String.valueOf(i % 10);
+                    }
+
+                    String data = String.join("", dataArr);
+                    location.setData(data);
+
+                    System.out.printf("Sent %s [%f, %f] (%s, %s) data len = %d\n",
+                            topic,
+                            location.getPositionLat(),
+                            location.getPositionLon(),
+                            location.getName(),
+                            location.getDescription(),
+                            nrChar);
+
+                    publisher.send(location);
                 }
                 try {
                     Thread.sleep(2 * 1000);

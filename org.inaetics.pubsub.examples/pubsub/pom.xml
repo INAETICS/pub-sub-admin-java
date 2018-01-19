@@ -47,6 +47,7 @@
     </build>
 
     <modules>
+        <module>common</module>
         <module>publisher</module>
         <module>subscriber</module>
     </modules>

@@ -43,6 +43,7 @@
   org.apache.kafka.kafka-clients;version=1.0.0,\
   org.inaetics.pubsub.api,\
   org.inaetics.pubsub.spi,\
+  org.inaetics.pubsub.examples.pubsub.common,\
   org.inaetics.pubsub.topologymanager,\
   org.inaetics.pubsub.discovery.etcd,\
   org.inaetics.pubsub.serialization.json,\

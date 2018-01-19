@@ -46,4 +46,12 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
         </plugins>
     </build>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.examples.pubsub.common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
 </project>
