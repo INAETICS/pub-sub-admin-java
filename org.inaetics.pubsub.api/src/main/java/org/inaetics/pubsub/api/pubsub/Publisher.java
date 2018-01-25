@@ -27,5 +27,12 @@ public interface Publisher {
 
   public void send(Object msg);
 
+  public void send(Object msg, int msgTypeId);
+
   public void sendMultipart(Object msg, int flags) throws MultipartException;
+
+  public void sendMultipart(Object msg, int flags, int msgTypeId) throws MultipartException;
+
+  public int localMsgTypeIdForMsgType(String msgType);
+
 }

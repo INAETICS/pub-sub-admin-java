@@ -43,6 +43,11 @@ public class KafkaPublisher implements org.inaetics.pubsub.api.pubsub.Publisher 
   }
 
   @Override
+  public void send(Object msg, int msgTypeId) {
+    // Not used for Kafka
+  }
+
+  @Override
   public synchronized void sendMultipart(Object msg, int flags) throws MultipartException {
     boolean objectAdded = false;
     
@@ -77,6 +82,17 @@ public class KafkaPublisher implements org.inaetics.pubsub.api.pubsub.Publisher 
       multipartContainer = null;
     }
 
+  }
+
+  @Override
+  public void sendMultipart(Object msg, int flags, int msgTypeId) throws MultipartException {
+    // Not used for Kafka
+  }
+
+  @Override
+  public int localMsgTypeIdForMsgType(String msgType) {
+    // Not used for Kafka
+    return 0;
   }
 
 

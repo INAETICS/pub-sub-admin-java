@@ -129,4 +129,21 @@ public class Utils {
     }
   }
 
+  /**
+   * DJB2 Hash Algorithm, the same hashing algorithm is used by Apache Celix
+   * @param input   the input string to hash
+   * @return        the hashed string
+   */
+  public static int stringHash(String input){
+
+    int hc = 5381;
+
+    for(int i = 0; i < input.length(); i++) {
+      hc = (hc << 5) + hc + input.charAt(i);
+    }
+
+    return hc;
+
+  }
+
 }

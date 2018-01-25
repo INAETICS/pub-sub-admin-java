@@ -25,6 +25,7 @@ import org.zeromq.ZMQ;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -74,22 +75,63 @@ public class ZmqSubscriber extends Thread {
 
       ZFrame headerMsg = ZFrame.recvFrame(this.socket);
 
-      if (headerMsg.hasMore()){
-        ZFrame payloadMsg = ZFrame.recvFrame(this.socket);
+      if (headerMsg == null) {
 
-        byte[] data = payloadMsg.getData();
+        System.out.println("headerMsg is null");
 
-        MultipartContainer container = serializer.deserialize(data);
+      } else {
 
-        synchronized (subscribers) {
-          for (BlockingQueue<MultipartContainer> queue : subscribers.values()) {
-            queue.add(container);
-          }
-        }
+        if (headerMsg.hasMore()) {
+          ZFrame payloadMsg = ZFrame.recvFrame(this.socket);
 
-      }
+          if (payloadMsg == null) {
+            System.out.println("payloadMsg is null!");
+            headerMsg.destroy();
+          } else {
 
-    }
+            MultipartContainer rootContainer = serializer.deserialize(payloadMsg.getData());
+
+            boolean more = payloadMsg.hasMore();
+            while (more){
+              ZFrame hMsg = ZFrame.recvFrame(this.socket);
+              if (hMsg == null) {
+                System.out.println("hMsg is null");
+                break;
+              }
+
+              ZFrame pMsg = ZFrame.recvFrame(this.socket);
+              if (pMsg == null) {
+                System.out.println("pMsg is null");
+                hMsg.destroy();
+                break;
+              }
+
+              MultipartContainer mc = serializer.deserialize(pMsg.getData());
+              List<Object> objs = mc.getObjects();
+              for (Object obj : objs){
+                rootContainer.addObject(obj);
+              }
+
+              more = pMsg.hasMore();
+
+            } // while (more)
+
+            synchronized (subscribers) {
+              for (BlockingQueue<MultipartContainer> queue : subscribers.values()) {
+                queue.add(rootContainer);
+              }
+            }
+
+          } //payloadMsg != null
+
+        } else {
+          System.out.printf("Received message for topic '%s' without payload!\n", new String(headerMsg.getData()));
+          headerMsg.destroy();
+        } //!headerMsg.hasMore()
+
+      } // headerMsg != null
+
+    } // while (!this.isInterrupted())
   }
 
   private class SubscriberCaller extends Thread {

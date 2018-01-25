@@ -17,6 +17,7 @@ import org.inaetics.pubsub.api.pubsub.MultipartException;
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.spi.serialization.MultipartContainer;
 import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.inaetics.pubsub.spi.utils.Utils;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
@@ -27,6 +28,14 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
   private Serializer serializer;
   private MultipartContainer multipartContainer;
 
+  public static int UNSIGNED_INT_SIZE = 4;
+  public static int CHAR_SIZE = 1;
+
+  public static int MAX_TOPIC_LEN = 1024;
+
+  private static final int FIRST_SEND_DELAY = 2; // in seconds
+  private static boolean firstSend = true;
+
   public ZmqPublisher(String topic, ZMQ.Socket socket, Serializer serializer) {
     this.topic = topic;
     this.serializer = serializer;
@@ -35,15 +44,27 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
   @Override
   public void send(Object msg) {
+    send(msg, 0);
+  }
 
-    MultipartContainer container = new MultipartContainer();
-    container.addObject(msg);
-    send_pubsub_msg(serializer.serialize(container), true);
+  @Override
+  public void send(Object msg, int msgTypeId) {
+
+    try {
+      sendMultipart(msg, Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG, msgTypeId);
+    } catch (MultipartException e) {
+      System.out.println("Error in send() method: " + e.getMessage());
+    }
 
   }
 
   @Override
-  public synchronized void sendMultipart(Object msg, int flags) throws MultipartException {
+  public void sendMultipart(Object msg, int flags) throws MultipartException {
+    sendMultipart(msg, flags, 0);
+  }
+
+  @Override
+  public synchronized void sendMultipart(Object msg, int flags, int msgTypeId) throws MultipartException {
 
     boolean objectAdded = false;
 
@@ -74,7 +95,7 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
           multipartContainer.addObject(msg);
           objectAdded = true;
         }
-        send_pubsub_msg(serializer.serialize(multipartContainer), true);
+        send_pubsub_mp_msg(multipartContainer, msgTypeId);
         multipartContainer = null;
 
         break;
@@ -82,7 +103,7 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
       case Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG: //Normal send case
         MultipartContainer container = new MultipartContainer();
         container.addObject(msg);
-        send_pubsub_msg(serializer.serialize(container), true);
+        send_pubsub_msg(serializer.serialize(container), msgTypeId, true);
         break;
 
       default:
@@ -92,12 +113,19 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
   }
 
-  private synchronized boolean send_pubsub_msg(byte[] msg, boolean last){
+  @Override
+  public int localMsgTypeIdForMsgType(String msgType) {
+    return Utils.stringHash(msgType);
+  }
+
+  private synchronized boolean send_pubsub_msg(byte[] msg, int msgTypeId, boolean last){
 
     boolean success = true;
 
-    ZFrame headerMsg = new ZFrame(this.topic); // TODO: Change header message to be compliant with Celix
+    ZFrame headerMsg = new ZFrame(createHdrMsg(msgTypeId));
     ZFrame payloadMsg = new ZFrame(msg);
+
+    delay_first_send_for_late_joiners();
 
     if (!headerMsg.send(this.socket, ZFrame.MORE)) success = false;
 
@@ -115,8 +143,75 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
     return success;
   }
 
-  public ZMQ.Socket getSocket() {
-    return this.socket;
+  private synchronized boolean send_pubsub_mp_msg(MultipartContainer container, int msgTypeId){
+
+    boolean success = true;
+
+    int containerSize = container.getObjects().size();
+    for (int i = 0; i < containerSize; i++){
+      MultipartContainer single = new MultipartContainer();
+      single.addObject(container.getObjects().get(i));
+      success = success && send_pubsub_msg(serializer.serialize(single), msgTypeId, (i==containerSize-1));
+    }
+
+    return success;
+
+  }
+
+  private byte[] createHdrMsg(int msgTypeId) {
+
+    // Given the following struct in C:
+    // struct pubsub_msg_header{
+    //   char topic[MAX_TOPIC_LEN];
+    //   unsigned int type;
+    //   unsigned char major;
+    //   unsigned char minor;
+    // };
+    //
+    // The bytebuffer needs to be the exact same length in C and Java
+
+    int byteBufferLength = (MAX_TOPIC_LEN * CHAR_SIZE) + UNSIGNED_INT_SIZE + CHAR_SIZE + CHAR_SIZE;
+
+    byte[] buff = new byte[byteBufferLength];
+
+    byte[] topicBytes = this.topic.getBytes();
+    if (this.topic.length() >= MAX_TOPIC_LEN){
+      System.arraycopy(topicBytes,
+              0,
+              buff,
+              0,
+              MAX_TOPIC_LEN - 2);
+
+      buff[MAX_TOPIC_LEN - 1] = '\0'; // terminate topic
+    } else {
+      System.arraycopy(topicBytes,
+              0,
+              buff,
+              0,
+              this.topic.getBytes().length);
+    }
+
+    buff[MAX_TOPIC_LEN]     = (byte) (msgTypeId >> 24);
+    buff[MAX_TOPIC_LEN + 1] = (byte) (msgTypeId >> 16);
+    buff[MAX_TOPIC_LEN + 2] = (byte) (msgTypeId >> 8);
+    buff[MAX_TOPIC_LEN + 3] = (byte) (msgTypeId);
+
+    buff[MAX_TOPIC_LEN + 4] = '1';
+    buff[MAX_TOPIC_LEN + 5] = '0';
+
+    return buff;
+  }
+
+  private void delay_first_send_for_late_joiners() {
+    if(firstSend){
+      System.out.println(this.getClass().getSimpleName() + ": Delaying first send for late joiners...");
+      try {
+        Thread.sleep(FIRST_SEND_DELAY * 1000);
+      } catch (InterruptedException e) {
+        System.out.println(this.getClass().getSimpleName() + "Something wrong with sleeping!");
+      }
+      firstSend = false;
+    }
   }
 
 }

@@ -26,7 +26,7 @@ public class Demo {
     protected final void init(){
         System.out.println("INITIALIZED " + this.getClass().getName());
 
-        this.topic = "testTopic"; //TODO: Determine using message descriptor ??
+        this.topic = "poi1"; //TODO: Determine using message descriptor ??
 
         this.subscriber = new DemoSubscriber(this.topic);
     }

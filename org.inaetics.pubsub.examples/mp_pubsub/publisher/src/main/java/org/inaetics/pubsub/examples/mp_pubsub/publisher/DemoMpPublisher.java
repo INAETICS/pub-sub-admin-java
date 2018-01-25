@@ -29,6 +29,8 @@ public class DemoMpPublisher {
     private Ew ew;
     private Ide ide;
 
+    private static boolean firstTime = true;
+
     @Init
     protected final void init(){
         System.out.println("INITIALIZED " + this.getClass().getName());
@@ -87,27 +89,41 @@ public class DemoMpPublisher {
 
                 if (publisher != null) {
 
+                    int kinematicsMsgId = publisher.localMsgTypeIdForMsgType(Kinematics.MSG_KINEMATICS_NAME);
+                    int ideMsgId = publisher.localMsgTypeIdForMsgType(Ide.MSG_IDE_NAME);
+                    int ewMsgId = publisher.localMsgTypeIdForMsgType(Ew.MSG_EW_NAME);
+
+                    if (firstTime){
+                        System.out.println("'kinematics' msgId: " + kinematicsMsgId);
+                        System.out.println("'ide' msgId: " + ideMsgId);
+                        System.out.println("'ew' msgId: " + ewMsgId);
+                        System.out.print("\n");
+                        firstTime = false;
+                    }
+
                     kinematics.setPositionLat(ThreadLocalRandom.current().nextDouble(Kinematics.MIN_LAT, Kinematics.MAX_LAT));
-                    kinematics.setPositionLon(ThreadLocalRandom.current().nextDouble(Kinematics.MIN_LON, Kinematics.MAX_LON));
+                    kinematics.setPositionLong(ThreadLocalRandom.current().nextDouble(Kinematics.MIN_LON, Kinematics.MAX_LON));
                     kinematics.setOccurrences(ThreadLocalRandom.current().nextInt(Kinematics.MIN_OCCUR, Kinematics.MAX_OCCUR));
                     try {
+                        publisher.sendMultipart(kinematics, Publisher.PUBLISHER_FIRST_MSG, kinematicsMsgId);
+
                         System.out.printf("Track#%d kin_data: pos=[%f, %f] occurrences=%d\n",
                                 counter,
-                                kinematics.getPositionLat(),
-                                kinematics.getPositionLon(),
+                                kinematics.getPosition().getLat(),
+                                kinematics.getPosition().getLong(),
                                 kinematics.getOccurrences());
 
-                        publisher.sendMultipart(kinematics, Publisher.PUBLISHER_FIRST_MSG);
                     } catch (MultipartException e) {
                         System.out.println("Error with first message: " + e.getMessage());
                     }
 
                     ide.setShape(Ide.Shape.values()[ThreadLocalRandom.current().nextInt(0, Ide.Shape.values().length)]);
                     try {
+                        publisher.sendMultipart(ide, Publisher.PUBLISHER_PART_MSG, ideMsgId);
+
                         System.out.printf("Track#%d ide_data: shape=%s\n",
                                 counter,
-                                ide.getShape().toString());
-                        publisher.sendMultipart(ide, Publisher.PUBLISHER_PART_MSG);
+                                Ide.Shape.values()[ide.getShape()].toString());
                     } catch (MultipartException e) {
                         System.out.println("Error with part message: " + e.getMessage());
                     }
@@ -115,11 +131,12 @@ public class DemoMpPublisher {
                     ew.setArea(ThreadLocalRandom.current().nextDouble(Ew.MIN_AREA, Ew.MAX_AREA));
                     ew.setColor(Ew.Color.values()[ThreadLocalRandom.current().nextInt(0, Ew.Color.values().length)]);
                     try {
+                        publisher.sendMultipart(ew, Publisher.PUBLISHER_LAST_MSG, ewMsgId);
+
                         System.out.printf("Track#%d ew_data: area=%f color=%s\n",
                                 counter,
                                 ew.getArea(),
-                                ew.getColor().toString());
-                        publisher.sendMultipart(ew, Publisher.PUBLISHER_LAST_MSG);
+                                Ew.Color.values()[ew.getColor()].toString());
                     } catch (MultipartException e) {
                         System.out.println("Error with last message: " + e.getMessage());
                     }

@@ -23,8 +23,8 @@ public class DemoMpSubscriber implements Subscriber {
             System.out.println("MP_SUBSCRIBER: Unexpected NULL data for kinematics data");
         } else {
             System.out.printf("kin_data: pos=[%f, %f] occurrences=%d\n",
-                    kinematics.getPositionLat(),
-                    kinematics.getPositionLon(),
+                    kinematics.getPosition().getLat(),
+                    kinematics.getPosition().getLong(),
                     kinematics.getOccurrences());
         }
 
@@ -32,7 +32,7 @@ public class DemoMpSubscriber implements Subscriber {
             System.out.println("MP_SUBSCRIBER: Unexpected NULL data for ide data");
         } else {
             System.out.printf("ide_data: shape=%s\n",
-                    ide.getShape().toString());
+                    Ide.Shape.values()[ide.getShape()].toString());
         }
 
         if (ew == null) {
@@ -40,7 +40,7 @@ public class DemoMpSubscriber implements Subscriber {
         } else {
             System.out.printf("ew_data: area=%f color=%s\n",
                     ew.getArea(),
-                    ew.getColor().toString());
+                    Ew.Color.values()[ew.getColor()].toString());
         }
 
         System.out.print("\n");

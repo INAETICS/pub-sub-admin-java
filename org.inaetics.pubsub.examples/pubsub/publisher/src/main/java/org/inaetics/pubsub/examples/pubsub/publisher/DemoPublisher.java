@@ -24,10 +24,12 @@ public class DemoPublisher {
     private String topic;
     private Location location;
 
+    private static boolean firstTime = true;
+
     @Init
     protected final void init(){
         System.out.println("INITIALIZED " + this.getClass().getName());
-        this.topic = "testTopic"; //TODO: Determine using message descriptor ??
+        this.topic = "poi1"; //TODO: Determine using message descriptor ??
 
         this.location = new Location();
         this.location.setName("Bundle#" + bundleContext.getBundle().getBundleId());
@@ -80,9 +82,18 @@ public class DemoPublisher {
 
         @Override
         public void run() {
+
             while (!this.isInterrupted()) {
 
                 if (publisher != null) {
+                    int locationMsgId = publisher.localMsgTypeIdForMsgType(Location.MSG_POI_NAME);
+
+                    if (firstTime) {
+                        System.out.println("'poi1' msgId: " + locationMsgId);
+                        System.out.print("\n");
+                        firstTime = false;
+                    }
+
                     location.setPositionLat(ThreadLocalRandom.current().nextDouble(Location.MIN_LAT, Location.MAX_LAT));
                     location.setPositionLon(ThreadLocalRandom.current().nextDouble(Location.MIN_LON, Location.MAX_LON));
 
@@ -96,6 +107,8 @@ public class DemoPublisher {
                     String data = String.join("", dataArr);
                     location.setData(data);
 
+                    publisher.send(location, locationMsgId);
+
                     System.out.printf("Sent %s [%f, %f] (%s, %s) data len = %d\n",
                             topic,
                             location.getPositionLat(),
@@ -104,7 +117,6 @@ public class DemoPublisher {
                             location.getDescription(),
                             nrChar);
 
-                    publisher.send(location);
                 }
                 try {
                     Thread.sleep(2 * 1000);

@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 public class Location implements Serializable {
 
+    public static final String MSG_POI_NAME = "poi1"; //Has to match the message name in the msg descriptor in the C bundle!
+
     public static final double MIN_LAT = -90.0F;
     public static final double MAX_LAT = 90.0F;
     public static final double MIN_LON = -180.0F;
