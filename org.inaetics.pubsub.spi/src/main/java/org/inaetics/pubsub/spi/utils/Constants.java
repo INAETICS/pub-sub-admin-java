@@ -25,6 +25,11 @@ public final class Constants {
   public static final String PUBSUB_TYPE = "pubsub.type";
   public static final String PUBLISHER = "publisher";
   public static final String SUBSCRIBER = "subscriber";
-  
+
+  public static final int MAX_TOPIC_LEN = 1024;
+  public static final int MAX_CLASS_LEN = 1024;
+
+  public static final int UNSIGNED_INT_SIZE = 4;
+  public static final int CHAR_SIZE = 1;
 
 }

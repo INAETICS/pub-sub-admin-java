@@ -17,6 +17,7 @@ import org.inaetics.pubsub.api.pubsub.MultipartException;
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.spi.serialization.MultipartContainer;
 import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
@@ -28,13 +29,8 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
   private Serializer serializer;
   private MultipartContainer multipartContainer;
 
-  public static int UNSIGNED_INT_SIZE = 4;
-  public static int CHAR_SIZE = 1;
-
-  public static int MAX_TOPIC_LEN = 1024;
-
-  private static final int FIRST_SEND_DELAY = 2; // in seconds
-  private static boolean firstSend = true;
+  private final int FIRST_SEND_DELAY = 2; // in seconds
+  private boolean firstSend = true;
 
   public ZmqPublisher(String topic, ZMQ.Socket socket, Serializer serializer) {
     this.topic = topic;
@@ -51,7 +47,7 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
   public void send(Object msg, int msgTypeId) {
 
     try {
-      sendMultipart(msg, Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG, msgTypeId);
+      sendMultipart(msg, msgTypeId, Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG);
     } catch (MultipartException e) {
       System.out.println("Error in send() method: " + e.getMessage());
     }
@@ -60,11 +56,11 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
   @Override
   public void sendMultipart(Object msg, int flags) throws MultipartException {
-    sendMultipart(msg, flags, 0);
+    sendMultipart(msg,0, flags);
   }
 
   @Override
-  public synchronized void sendMultipart(Object msg, int flags, int msgTypeId) throws MultipartException {
+  public synchronized void sendMultipart(Object msg, int msgTypeId, int flags) throws MultipartException {
 
     boolean objectAdded = false;
 
@@ -103,7 +99,7 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
       case Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG: //Normal send case
         MultipartContainer container = new MultipartContainer();
         container.addObject(msg);
-        send_pubsub_msg(serializer.serialize(container), msgTypeId, true);
+        send_pubsub_msg(serializer.serialize(container), msgTypeId, msg.getClass().getName(), true);
         break;
 
       default:
@@ -118,11 +114,11 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
     return Utils.stringHash(msgType);
   }
 
-  private synchronized boolean send_pubsub_msg(byte[] msg, int msgTypeId, boolean last){
+  private synchronized boolean send_pubsub_msg(byte[] msg, int msgTypeId, String msgTypeClassName, boolean last){
 
     boolean success = true;
 
-    ZFrame headerMsg = new ZFrame(createHdrMsg(msgTypeId));
+    ZFrame headerMsg = new ZFrame(createHdrMsg(msgTypeId, msgTypeClassName));
     ZFrame payloadMsg = new ZFrame(msg);
 
     delay_first_send_for_late_joiners();
@@ -143,22 +139,21 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
     return success;
   }
 
-  private synchronized boolean send_pubsub_mp_msg(MultipartContainer container, int msgTypeId){
+  private synchronized boolean send_pubsub_mp_msg(MultipartContainer container, int msgTypeId) {
 
     boolean success = true;
 
     int containerSize = container.getObjects().size();
     for (int i = 0; i < containerSize; i++){
-      MultipartContainer single = new MultipartContainer();
-      single.addObject(container.getObjects().get(i));
-      success = success && send_pubsub_msg(serializer.serialize(single), msgTypeId, (i==containerSize-1));
+      success = success && send_pubsub_msg(serializer.serialize(container.getObjects().get(i)),
+              msgTypeId, container.getClasses().get(i), (i==containerSize-1));
     }
 
     return success;
 
   }
 
-  private byte[] createHdrMsg(int msgTypeId) {
+  private byte[] createHdrMsg(int msgTypeId, String msgTypeClassName) {
 
     // Given the following struct in C:
     // struct pubsub_msg_header{
@@ -166,23 +161,28 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
     //   unsigned int type;
     //   unsigned char major;
     //   unsigned char minor;
+    //   char className[MAX_CLASS_LEN]; // TODO: Not in Celix (yet?)
     // };
     //
     // The bytebuffer needs to be the exact same length in C and Java
 
-    int byteBufferLength = (MAX_TOPIC_LEN * CHAR_SIZE) + UNSIGNED_INT_SIZE + CHAR_SIZE + CHAR_SIZE;
+    int byteBufferLength = (Constants.MAX_TOPIC_LEN * Constants.CHAR_SIZE) +
+            Constants.UNSIGNED_INT_SIZE +
+            Constants.CHAR_SIZE +
+            Constants.CHAR_SIZE +
+            Constants.MAX_CLASS_LEN;
 
     byte[] buff = new byte[byteBufferLength];
 
     byte[] topicBytes = this.topic.getBytes();
-    if (this.topic.length() >= MAX_TOPIC_LEN){
+    if (this.topic.length() >= Constants.MAX_TOPIC_LEN){
       System.arraycopy(topicBytes,
               0,
               buff,
               0,
-              MAX_TOPIC_LEN - 2);
+              Constants.MAX_TOPIC_LEN - 2);
 
-      buff[MAX_TOPIC_LEN - 1] = '\0'; // terminate topic
+      buff[Constants.MAX_TOPIC_LEN - 1] = '\0'; // terminate topic
     } else {
       System.arraycopy(topicBytes,
               0,
@@ -191,13 +191,29 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
               this.topic.getBytes().length);
     }
 
-    buff[MAX_TOPIC_LEN]     = (byte) (msgTypeId >> 24);
-    buff[MAX_TOPIC_LEN + 1] = (byte) (msgTypeId >> 16);
-    buff[MAX_TOPIC_LEN + 2] = (byte) (msgTypeId >> 8);
-    buff[MAX_TOPIC_LEN + 3] = (byte) (msgTypeId);
+    buff[Constants.MAX_TOPIC_LEN]     = (byte) (msgTypeId >> 24);
+    buff[Constants.MAX_TOPIC_LEN + 1] = (byte) (msgTypeId >> 16);
+    buff[Constants.MAX_TOPIC_LEN + 2] = (byte) (msgTypeId >> 8);
+    buff[Constants.MAX_TOPIC_LEN + 3] = (byte) (msgTypeId);
 
-    buff[MAX_TOPIC_LEN + 4] = '1';
-    buff[MAX_TOPIC_LEN + 5] = '0';
+    buff[Constants.MAX_TOPIC_LEN + 4] = '1';
+    buff[Constants.MAX_TOPIC_LEN + 5] = '0';
+
+    int startPositionCN = Constants.MAX_TOPIC_LEN + 6;
+    int endPositionCN = byteBufferLength - 1;
+
+    byte[] classNameBytes = msgTypeClassName.getBytes();
+
+    if (msgTypeClassName.length() >= Constants.MAX_CLASS_LEN){
+      // class name is to long and must be truncated
+      System.arraycopy(classNameBytes, 0, buff, startPositionCN, endPositionCN - 1);
+      buff[endPositionCN] = '\0'; // terminate topic
+
+    } else {
+      System.arraycopy(classNameBytes, 0, buff, startPositionCN, classNameBytes.length);
+    }
+
+    buff[endPositionCN] = '\0';
 
     return buff;
   }
@@ -208,7 +224,7 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
       try {
         Thread.sleep(FIRST_SEND_DELAY * 1000);
       } catch (InterruptedException e) {
-        System.out.println(this.getClass().getSimpleName() + "Something wrong with sleeping!");
+        System.out.println(this.getClass().getSimpleName() + ": Something wrong with sleeping!");
       }
       firstSend = false;
     }

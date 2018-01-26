@@ -105,7 +105,7 @@ public class DemoMpPublisher {
                     kinematics.setPositionLong(ThreadLocalRandom.current().nextDouble(Kinematics.MIN_LON, Kinematics.MAX_LON));
                     kinematics.setOccurrences(ThreadLocalRandom.current().nextInt(Kinematics.MIN_OCCUR, Kinematics.MAX_OCCUR));
                     try {
-                        publisher.sendMultipart(kinematics, Publisher.PUBLISHER_FIRST_MSG, kinematicsMsgId);
+                        publisher.sendMultipart(kinematics, kinematicsMsgId, Publisher.PUBLISHER_FIRST_MSG);
 
                         System.out.printf("Track#%d kin_data: pos=[%f, %f] occurrences=%d\n",
                                 counter,
@@ -119,7 +119,7 @@ public class DemoMpPublisher {
 
                     ide.setShape(Ide.Shape.values()[ThreadLocalRandom.current().nextInt(0, Ide.Shape.values().length)]);
                     try {
-                        publisher.sendMultipart(ide, Publisher.PUBLISHER_PART_MSG, ideMsgId);
+                        publisher.sendMultipart(ide, ideMsgId, Publisher.PUBLISHER_PART_MSG);
 
                         System.out.printf("Track#%d ide_data: shape=%s\n",
                                 counter,
@@ -131,7 +131,7 @@ public class DemoMpPublisher {
                     ew.setArea(ThreadLocalRandom.current().nextDouble(Ew.MIN_AREA, Ew.MAX_AREA));
                     ew.setColor(Ew.Color.values()[ThreadLocalRandom.current().nextInt(0, Ew.Color.values().length)]);
                     try {
-                        publisher.sendMultipart(ew, Publisher.PUBLISHER_LAST_MSG, ewMsgId);
+                        publisher.sendMultipart(ew, ewMsgId, Publisher.PUBLISHER_LAST_MSG);
 
                         System.out.printf("Track#%d ew_data: area=%f color=%s\n",
                                 counter,

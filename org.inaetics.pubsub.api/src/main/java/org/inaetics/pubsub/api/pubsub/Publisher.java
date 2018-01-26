@@ -18,7 +18,7 @@ public interface Publisher {
   public static final String PUBSUB_SCOPE = "pubsub.scope";
   public static final String PUBSUB_STRATEGY = "pubsub.strategy";
   public static final String PUBSUB_CONFIG = "pubsub.config";
-  public static final String PUBSUB_ENDPOINT_URL = "bind.url";
+  public static final String PUBSUB_ENDPOINT_URL = "endpoint.url";
 
   // flags
   public static final int PUBLISHER_FIRST_MSG = 01;
@@ -31,7 +31,7 @@ public interface Publisher {
 
   public void sendMultipart(Object msg, int flags) throws MultipartException;
 
-  public void sendMultipart(Object msg, int flags, int msgTypeId) throws MultipartException;
+  public void sendMultipart(Object msg, int msgTypeId, int flags) throws MultipartException;
 
   public int localMsgTypeIdForMsgType(String msgType);
 

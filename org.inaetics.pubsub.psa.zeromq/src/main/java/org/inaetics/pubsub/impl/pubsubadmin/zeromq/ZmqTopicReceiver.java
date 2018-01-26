@@ -25,7 +25,6 @@ import org.osgi.framework.ServiceReference;
 import org.zeromq.ZCert;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
-import zmq.socket.pubsub.Pub;
 
 import java.util.HashMap;
 import java.util.HashSet;

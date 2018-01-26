@@ -36,7 +36,7 @@ public class JacksonSerializer implements Serializer {
   public static final String SERIALIZER_JACKSON = "serializer.jackson";
 
   @Override
-  public byte[] serialize(MultipartContainer obj) {
+  public byte[] serialize(Object obj) {
     try {
       return mapper.writeValueAsBytes(obj);
 
@@ -44,6 +44,43 @@ public class JacksonSerializer implements Serializer {
       logService.log(LogService.LOG_ERROR, "Exception during JSON serialize", e);
     }
 
+    return null;
+  }
+
+  @Override
+  public byte[] serialize(MultipartContainer container) {
+    try {
+      return mapper.writeValueAsBytes(container);
+
+    } catch (JsonProcessingException e) {
+      logService.log(LogService.LOG_ERROR, "Exception during JSON serialize", e);
+    }
+
+    return null;
+  }
+
+  @Override
+  public Object deserialize(String clazz, byte[] bytes) {
+    ClassLoader loader = Thread.currentThread().getContextClassLoader();
+    try {
+      String json = new String(bytes);
+      
+      Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+
+      JsonNode object = mapper.readTree(json);
+
+      final Class<?> cls = Class.forName(clazz);
+
+      Object obj = mapper.convertValue(object, cls);
+
+      return obj;
+    } catch (IOException e) {
+      logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
+    } catch (ClassNotFoundException e) {
+      logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
+    } finally {
+      Thread.currentThread().setContextClassLoader(loader);
+    }
     return null;
   }
 

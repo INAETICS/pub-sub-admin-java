@@ -19,6 +19,7 @@ import org.inaetics.pubsub.api.pubsub.MultipartException;
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.spi.serialization.MultipartContainer;
 import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.inaetics.pubsub.spi.utils.Utils;
 
 public class KafkaPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
   private final String topic;
@@ -37,20 +38,25 @@ public class KafkaPublisher implements org.inaetics.pubsub.api.pubsub.Publisher 
 
   @Override
   public void send(Object msg) {
-      MultipartContainer container = new MultipartContainer();
+    send(msg, 0);
+  }
+
+  @Override
+  public void send(Object msg, int msgTypeId) {
+    MultipartContainer container = new MultipartContainer();
     container.addObject(msg);
     producer.send(new ProducerRecord<byte[], byte[]>(topic, serializer.serialize(container)));
   }
 
   @Override
-  public void send(Object msg, int msgTypeId) {
-    // Not used for Kafka
+  public synchronized void sendMultipart(Object msg, int flags) throws MultipartException {
+    sendMultipart(msg,0, flags);
   }
 
   @Override
-  public synchronized void sendMultipart(Object msg, int flags) throws MultipartException {
+  public void sendMultipart(Object msg, int msgTypeId, int flags) throws MultipartException {
     boolean objectAdded = false;
-    
+
     if ((flags & Publisher.PUBLISHER_FIRST_MSG) > 0) {
       if (multipartContainer == null) {
         multipartContainer = new MultipartContainer();
@@ -60,11 +66,11 @@ public class KafkaPublisher implements org.inaetics.pubsub.api.pubsub.Publisher 
         throw new MultipartException("Can't have 2 first messages in a multipart send.");
       }
     }
-    
+
     if (multipartContainer == null) {
       throw new MultipartException("No first message sent");
     }
-    
+
     if ((flags & Publisher.PUBLISHER_PART_MSG) > 0) {
       if (!objectAdded) {
         multipartContainer.addObject(msg);
@@ -81,12 +87,6 @@ public class KafkaPublisher implements org.inaetics.pubsub.api.pubsub.Publisher 
       producer.send(new ProducerRecord<byte[], byte[]>(topic, data));
       multipartContainer = null;
     }
-
-  }
-
-  @Override
-  public void sendMultipart(Object msg, int flags, int msgTypeId) throws MultipartException {
-    // Not used for Kafka
   }
 
   @Override

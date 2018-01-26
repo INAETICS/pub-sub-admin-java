@@ -16,6 +16,7 @@ package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
 import org.inaetics.pubsub.spi.serialization.MultipartContainer;
 import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.InvalidSyntaxException;
@@ -25,7 +26,6 @@ import org.zeromq.ZMQ;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -89,7 +89,19 @@ public class ZmqSubscriber extends Thread {
             headerMsg.destroy();
           } else {
 
-            MultipartContainer rootContainer = serializer.deserialize(payloadMsg.getData());
+            MultipartContainer rootContainer = new MultipartContainer();
+            int srcPositionClassName = (Constants.MAX_TOPIC_LEN * Constants.CHAR_SIZE) + Constants.UNSIGNED_INT_SIZE + Constants.CHAR_SIZE + Constants.CHAR_SIZE;
+
+            byte[] headerMsgData = headerMsg.getData();
+            byte[] classNameBytes = new byte[Constants.MAX_CLASS_LEN];
+
+            // Extract class name from header msg
+            System.arraycopy(headerMsgData, srcPositionClassName, classNameBytes, 0, Constants.MAX_CLASS_LEN);
+
+            String clazz = new String(classNameBytes).trim();
+
+            Object obj = serializer.deserialize(clazz, payloadMsg.getData());
+            rootContainer.addObject(obj);
 
             boolean more = payloadMsg.hasMore();
             while (more){
@@ -106,11 +118,16 @@ public class ZmqSubscriber extends Thread {
                 break;
               }
 
-              MultipartContainer mc = serializer.deserialize(pMsg.getData());
-              List<Object> objs = mc.getObjects();
-              for (Object obj : objs){
-                rootContainer.addObject(obj);
-              }
+              headerMsgData = hMsg.getData();
+              classNameBytes = new byte[Constants.MAX_CLASS_LEN];
+
+              // Extract class name from header msg
+              System.arraycopy(headerMsgData, srcPositionClassName, classNameBytes, 0, Constants.MAX_CLASS_LEN);
+
+              clazz = new String(classNameBytes).trim();
+
+              Object otherObj = serializer.deserialize(clazz, pMsg.getData());
+              rootContainer.addObject(otherObj);
 
               more = pMsg.hasMore();
 

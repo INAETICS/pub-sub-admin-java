@@ -21,7 +21,6 @@ import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.*;
 import org.osgi.util.tracker.ServiceTracker;
 import org.zeromq.ZCert;
-import org.zeromq.ZCertStore;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 

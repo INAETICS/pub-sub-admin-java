@@ -15,8 +15,8 @@ public class Ew {
         WHITE
     }
 
-    private Color color;
     private double area;
+    private Color color;
 
     public double getArea() {
         return area;
