@@ -18,7 +18,7 @@ public interface Publisher {
   public static final String PUBSUB_SCOPE = "pubsub.scope";
   public static final String PUBSUB_STRATEGY = "pubsub.strategy";
   public static final String PUBSUB_CONFIG = "pubsub.config";
-  public static final String PUBSUB_ENDPOINT_URL = "endpoint.url";
+  public static final String PUBSUB_ENDPOINT_URL = "pubsub.endpoint";
 
   // flags
   public static final int PUBLISHER_FIRST_MSG = 01;

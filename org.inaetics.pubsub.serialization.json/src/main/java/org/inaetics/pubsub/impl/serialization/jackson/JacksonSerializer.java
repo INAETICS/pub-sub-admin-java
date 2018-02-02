@@ -33,7 +33,7 @@ public class JacksonSerializer implements Serializer {
 
   private ObjectMapper mapper = new ObjectMapper();
   private volatile LogService logService;
-  public static final String SERIALIZER_JACKSON = "serializer.jackson";
+  public static final String SERIALIZER_JACKSON = "json";
 
   @Override
   public byte[] serialize(Object obj) {

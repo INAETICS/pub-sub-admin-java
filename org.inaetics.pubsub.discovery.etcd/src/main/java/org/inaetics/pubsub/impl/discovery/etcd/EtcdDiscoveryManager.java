@@ -296,13 +296,13 @@ public class EtcdDiscoveryManager implements DiscoveryManager, ManagedService {
   public String getSubscriberEtcdPath(Map<String, String> info) {
     String serviceID = info.get(SERVICE_ID);
     String topic = info.get(Subscriber.PUBSUB_TOPIC);
-    return PUBSUB_SUBSCRIBER_PATH + topic + "/" + localFrameworkUUID + "-" + serviceID;
+    return PUBSUB_SUBSCRIBER_PATH + topic + "/" + localFrameworkUUID + "/" + serviceID;
   }
 
   public String getPublisherEtcdPath(Map<String, String> info) {
     String serviceID = info.get(SERVICE_ID);
     String topic = info.get(Publisher.PUBSUB_TOPIC);
-    return PUBSUB_PUBLISHER_PATH + topic + "/" + localFrameworkUUID + "-" + serviceID;
+    return PUBSUB_PUBLISHER_PATH + topic + "/" + localFrameworkUUID + "/" + serviceID;
   }
 
   private class ResponseListener implements EtcdCallback {
