@@ -95,7 +95,7 @@ public class DemoPublisher {
                     }
 
                     location.setPositionLat(ThreadLocalRandom.current().nextDouble(Location.MIN_LAT, Location.MAX_LAT));
-                    location.setPositionLon(ThreadLocalRandom.current().nextDouble(Location.MIN_LON, Location.MAX_LON));
+                    location.setPositionLong(ThreadLocalRandom.current().nextDouble(Location.MIN_LON, Location.MAX_LON));
 
                     int nrChar = ThreadLocalRandom.current().nextInt(5, 100000);
                     String[] dataArr = new String[nrChar];
@@ -111,8 +111,8 @@ public class DemoPublisher {
 
                     System.out.printf("Sent %s [%f, %f] (%s, %s) data len = %d\n",
                             topic,
-                            location.getPositionLat(),
-                            location.getPositionLon(),
+                            location.getPosition().getLat(),
+                            location.getPosition().getLong(),
                             location.getName(),
                             location.getDescription(),
                             nrChar);

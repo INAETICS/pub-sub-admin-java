@@ -61,35 +61,31 @@ public class Location implements Serializable {
         this.position.setLat(lat);
     }
 
-    public double getPositionLat(){
-        return this.position.getLat();
+    public void setPositionLong(double lon){
+        this.position.setLong(lon);
     }
 
-    public void setPositionLon(double lon){
-        this.position.setLon(lon);
+    public Poi getPosition() {
+        return this.position;
     }
 
-    public double getPositionLon(){
-        return this.position.getLon();
-    }
-
-    private class Poi {
+    public class Poi {
         double lat;
         double lon;
 
-        private double getLat() {
+        public double getLat() {
             return lat;
         }
 
-        private void setLat(double lat) {
+        public void setLat(double lat) {
             this.lat = lat;
         }
 
-        private double getLon() {
+        public double getLong() {
             return lon;
         }
 
-        private void setLon(double lon) {
+        public void setLong(double lon) {
             this.lon = lon;
         }
     }
@@ -97,8 +93,8 @@ public class Location implements Serializable {
     @Override
     public String toString() {
         return String.format("[%f, %f] (%s, %s) data len = %d",
-                this.getPositionLat(),
-                this.getPositionLon(),
+                this.getPosition().getLat(),
+                this.getPosition().getLong(),
                 this.getName(),
                 this.getDescription(),
                 this.getData().length());

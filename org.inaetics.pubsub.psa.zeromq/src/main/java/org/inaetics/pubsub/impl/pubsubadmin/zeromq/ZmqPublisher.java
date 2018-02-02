@@ -97,9 +97,7 @@ public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
         break;
 
       case Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG: //Normal send case
-        MultipartContainer container = new MultipartContainer();
-        container.addObject(msg);
-        send_pubsub_msg(serializer.serialize(container), msgTypeId, msg.getClass().getName(), true);
+        send_pubsub_msg(serializer.serialize(msg), msgTypeId, msg.getClass().getName(), true);
         break;
 
       default:

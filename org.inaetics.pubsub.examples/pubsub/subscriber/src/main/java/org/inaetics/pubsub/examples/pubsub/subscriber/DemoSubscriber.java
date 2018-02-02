@@ -21,8 +21,8 @@ public class DemoSubscriber implements Subscriber {
         int nrDataChars = 25;
         System.out.printf("Recv (%s): [%f, %f] (%s, %s) data_len = %d data = %s\n",
                 this.topic,
-                location.getPositionLat(),
-                location.getPositionLon(),
+                location.getPosition().getLat(),
+                location.getPosition().getLong(),
                 location.getName(),
                 location.getDescription(),
                 location.getData().length(),
