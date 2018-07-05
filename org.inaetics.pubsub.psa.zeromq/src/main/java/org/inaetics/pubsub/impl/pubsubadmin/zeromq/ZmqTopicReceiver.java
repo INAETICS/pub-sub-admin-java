@@ -37,7 +37,7 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   private final Set<Subscriber> subscribers = new HashSet<>();
   private final Set<ZmqSubscriber> zmqSubscribers = new HashSet<>();
-  private final Map<String, Map<String, String>> zmqTopicsToEndpoint = new HashMap<>();
+  private final Map<String, Map<String, String>> zmqConnectedPublisherEndpoints = new HashMap<>();
 
   private ZContext zmqContext;
   private Map<String, String> zmqProperties;
@@ -84,13 +84,12 @@ public class ZmqTopicReceiver extends TopicReceiver {
 
   @Override
   public void open() {
-    for (String zmqTopic : zmqTopicsToEndpoint.keySet()) {
-      ZmqSubscriber zmqSubscriber = new ZmqSubscriber(zmqProperties, zmqTopic, zmqTopicsToEndpoint.get(zmqTopic).get(Serializer.SERIALIZER), socket);
+    for (String bindUrl : zmqConnectedPublisherEndpoints.keySet()) {
+      ZmqSubscriber zmqSubscriber = new ZmqSubscriber(bindUrl, zmqProperties, topic, zmqConnectedPublisherEndpoints.get(bindUrl).get(Serializer.SERIALIZER), socket);
 
-      String bindUrl = zmqTopicsToEndpoint.get(zmqTopic).get(Publisher.PUBSUB_ENDPOINT_URL);
-      System.out.println("Connecting to : " + zmqTopic + " / " + bindUrl);
+      System.out.println("Connecting to : " + topic + " / " + bindUrl);
       this.socket.connect(bindUrl);
-      this.socket.subscribe(zmqTopic);
+      this.socket.subscribe(topic);
 
       zmqSubscriber.start();
       for (Subscriber subscriber : subscribers) {
@@ -128,15 +127,15 @@ public class ZmqTopicReceiver extends TopicReceiver {
       String serializer = endpoint.get(Serializer.SERIALIZER);
       String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
 
-      if (!zmqTopicsToEndpoint.containsKey(zmqTopic)) {
-        zmqTopicsToEndpoint.put(zmqTopic, endpoint);
+      if (!zmqConnectedPublisherEndpoints.containsKey(bindUrl)) {
+          zmqConnectedPublisherEndpoints.put(bindUrl, endpoint);
 
         if (open) {
           System.out.println("Connecting to : " + zmqTopic + " / " + bindUrl);
           this.socket.connect(bindUrl);
           this.socket.subscribe(this.topic);
 
-          ZmqSubscriber zmqSubscriber = new ZmqSubscriber(zmqProperties, zmqTopic, serializer, socket);
+          ZmqSubscriber zmqSubscriber = new ZmqSubscriber(bindUrl, zmqProperties, zmqTopic, serializer, socket);
 
           for (Subscriber subscriber : subscribers) {
             zmqSubscriber.connect(subscriber);
@@ -153,17 +152,16 @@ public class ZmqTopicReceiver extends TopicReceiver {
     if (endpoint.get(PUBSUB_ADMIN_TYPE).equals(ZmqConstants.ZMQ)
             && endpoint.get(Publisher.PUBSUB_TOPIC).equals(topic)) {
 
-      String zmqTopic = endpoint.get(Subscriber.PUBSUB_TOPIC);
-      zmqTopicsToEndpoint.remove(zmqTopic);
+      String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
+      zmqConnectedPublisherEndpoints.remove(bindUrl);
 
       for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
-        if (zmqSubscriber.getTopic().equals(zmqTopic)) {
+        if (zmqSubscriber.getBindUrl().equals(bindUrl)) {
           zmqSubscriber.stopZmqSubscriber();
         }
       }
 
-      String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
-      System.out.println("Disconnecting from : " + zmqTopic + " / " + bindUrl);
+      System.out.println("Disconnecting from : " + topic + " / " + bindUrl);
       this.socket.unsubscribe(this.topic);
       this.socket.disconnect(bindUrl);
     }
