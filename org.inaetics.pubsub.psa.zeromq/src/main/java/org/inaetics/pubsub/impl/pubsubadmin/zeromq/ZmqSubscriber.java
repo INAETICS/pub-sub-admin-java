@@ -45,10 +45,12 @@ public class ZmqSubscriber extends Thread {
 
   private ZMQ.Socket socket;
 
-  public ZmqSubscriber(Map<String, String> zmqProperties, String topic, String serializer, ZMQ.Socket socket) {
+  private final String bindUrl;
+
+  public ZmqSubscriber(String bindUrl, Map<String, String> zmqProperties, String topic, String serializer, ZMQ.Socket socket) {
     this.zmqProperties = zmqProperties;
     this.topic = topic;
-
+    this.bindUrl = bindUrl;
     this.socket = socket;
 
     try {
@@ -204,5 +206,5 @@ public class ZmqSubscriber extends Thread {
     return this.topic;
   }
 
-
+  public String getBindUrl() {return this.bindUrl;}
 }
