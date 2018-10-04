@@ -1,3 +1,0 @@
-Private-Package: org.inaetics.pubsub.demo.subscriber
-Bundle-Activator: org.inaetics.pubsub.demo.subscriber.Activator
-Bundle-Version: 1.0.0

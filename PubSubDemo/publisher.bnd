@@ -1,7 +1,0 @@
-Private-Package: org.inaetics.pubsub.demo.publisher
-Bundle-Activator: org.inaetics.pubsub.demo.publisher.Activator
-Bundle-Version: 1.0.0
-Include-Resource: resource=resource
-X-Web-Resource-Version: 1.1
-X-Web-Resource: /demo;/resource
-X-Web-Resource-Default-Page: index.html

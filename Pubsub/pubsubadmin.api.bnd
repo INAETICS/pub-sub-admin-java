@@ -1,5 +1,0 @@
-Export-Package: \
-	org.inaetics.pubsub.api.discovery,\
-	org.inaetics.pubsub.api.serialization,\
-	org.inaetics.pubsub.api.pubsubadmin,\
-	org.inaetics.pubsub.api.pubsub
