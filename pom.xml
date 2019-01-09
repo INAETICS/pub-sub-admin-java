@@ -213,7 +213,6 @@
         <module>pubsub.spi</module>
         <module>pubsub.topologymanager</module>
         <module>pubsub.discovery.etcd</module>
-        <module>pubsub.psa.kafka</module>
         <module>pubsub.psa.zeromq</module>
         <module>pubsub.serialization.json</module>
         <module>examples</module>

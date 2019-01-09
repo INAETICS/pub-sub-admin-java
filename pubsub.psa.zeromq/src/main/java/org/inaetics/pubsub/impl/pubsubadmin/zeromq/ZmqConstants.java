@@ -14,7 +14,7 @@
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 public class ZmqConstants {
-  public static final String ZMQ = "zmq";
+  public static final String ZMQ_ADMIN_TYPE = "zmq";
 
   public static final String ZMQ_BASE_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.min";
   public static final int ZMQ_BASE_PORT_DEFAULT = 5501;
@@ -24,5 +24,7 @@ public class ZmqConstants {
 
   public static final String ZMQ_NR_OF_THREADS = "org.inaetics.pubsub.psa.zeromq.threads";
   public static final String ZMQ_SECURE = "org.inaetics.pubsub.psa.zeromq.secure";
+
+  public final static String ZMQ_CONNECTION_URL = "zmq.url";
 
 }

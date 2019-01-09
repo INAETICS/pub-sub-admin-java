@@ -14,25 +14,9 @@
 package org.inaetics.pubsub.api.pubsub;
 
 public interface Publisher {
-  public static final String PUBSUB_TOPIC = "pubsub.topic";
-  public static final String PUBSUB_SCOPE = "pubsub.scope";
-  public static final String PUBSUB_STRATEGY = "pubsub.strategy";
-  public static final String PUBSUB_CONFIG = "pubsub.config";
-  public static final String PUBSUB_ENDPOINT_URL = "pubsub.endpoint";
 
-  // flags
-  public static final int PUBLISHER_FIRST_MSG = 01;
-  public static final int PUBLISHER_PART_MSG = 02;
-  public static final int PUBLISHER_LAST_MSG = 04;
+    public static final String PUBSUB_TOPIC = "pubsub.topic";
+    public static final String PUBSUB_SCOPE = "pubsub.scope";
 
-  public void send(Object msg);
-
-  public void send(Object msg, int msgTypeId);
-
-  public void sendMultipart(Object msg, int flags) throws MultipartException;
-
-  public void sendMultipart(Object msg, int msgTypeId, int flags) throws MultipartException;
-
-  public int localMsgTypeIdForMsgType(String msgType);
-
+    public void send(Object msg);
 }

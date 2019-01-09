@@ -11,11 +11,14 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.impl.discovery.etcd;
+package org.inaetics.pubsub.spi.discovery;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Properties;
 
-public interface EtcdCallback {
-  public void onResult(JsonNode result);
-  public void onException(Exception exception);
+public interface DiscoveredEndpointListener {
+
+    void addDiscoveredEndpoint(Properties endpoint);
+
+    void removeDiscoveredEndpoint(Properties endpoint);
+
 }

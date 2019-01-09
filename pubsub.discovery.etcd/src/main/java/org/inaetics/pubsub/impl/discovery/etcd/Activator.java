@@ -18,7 +18,8 @@ import java.util.Hashtable;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
-import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
+import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
+import org.inaetics.pubsub.spi.discovery.DiscoveredEndpointListener;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.service.cm.ManagedService;
@@ -26,29 +27,32 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-  @Override
-  public void init(BundleContext bundleContext, DependencyManager manager) throws Exception {
+    @Override
+    public void init(BundleContext bundleContext, DependencyManager manager) throws Exception {
 
-    String[] objectClass = new String[] {
-            DiscoveryManager.class.getName(), ManagedService.class.getName()
-    };
+        String[] objectClass = new String[]{
+                AnnounceEndpointListener.class.getName(), ManagedService.class.getName()
+        };
 
-    Dictionary<String, Object> properties = new Hashtable<String, Object>();
-    properties.put(Constants.SERVICE_PID, EtcdDiscoveryManager.SERVICE_PID);
+        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        properties.put(Constants.SERVICE_PID, EtcdDiscovery.class.getName());
 
-    manager.add(
-        manager.createComponent()
-          .setInterface(objectClass, properties)
-          .setImplementation(EtcdDiscoveryManager.class)
-          .setCallbacks("init", "start", "stop", "destroy")
-          .add(createServiceDependency()
-              .setService(LogService.class)
-              .setRequired(false))
-          .add(createConfigurationDependency()
-              .setRequired(false)
-              .setPid(EtcdDiscoveryManager.SERVICE_PID))
-    );
+        manager.add(
+                manager.createComponent()
+                        .setInterface(objectClass, properties)
+                        .setImplementation(EtcdDiscovery.class)
+                        .setCallbacks(null, "start", "stop", null)
+                        .add(createServiceDependency()
+                                .setService(LogService.class)
+                                .setRequired(false))
+                        .add(createServiceDependency()
+                                .setService(DiscoveredEndpointListener.class)
+                                .setCallbacks("discoveredEndpointListenerAdded", "discoveredEndpointListenerRemoved"))
+                        .add(createConfigurationDependency()
+                                .setRequired(false)
+                                .setPid(EtcdDiscovery.class.getName()))
+        );
 
-  }
+    }
 
 }

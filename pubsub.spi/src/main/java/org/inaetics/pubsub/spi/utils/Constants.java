@@ -14,22 +14,20 @@
 package org.inaetics.pubsub.spi.utils;
 
 public final class Constants {
-  public static final String PUBSUB_CONFIG_PATH = "/pubsub/"; 
 
-  public static final String DISCOVERY_EVENT = "org/ineatics/pubsub/discovery";
-  public static final String DISCOVERY_EVENT_TYPE = "discovery.event.type";
-  public static final String DISCOVERY_INFO = "discovery.info";
-  public static final String DISCOVERY_EVENT_TYPE_CREATED = "discovery.event.type.created";
-  public static final String DISCOVERY_EVENT_TYPE_DELETED = "discovery.event.type.deleted";
-  
-  public static final String PUBSUB_TYPE = "pubsub.type";
-  public static final String PUBLISHER = "publisher";
-  public static final String SUBSCRIBER = "subscriber";
+    public static final String PUBSUB_PUBLISHER_ENDPOINT_TYPE = "publisher";
+    public static final String PUBSUB_SUBSCRIBER_ENDPOINT_TYPE = "subscriber";
 
-  public static final int MAX_TOPIC_LEN = 1024;
-  public static final int MAX_CLASS_LEN = 1024;
+    public static final String PUBSUB_SUBSCRIBER_SYSTEM_VISIBLITY = "system";
+    public static final String PUBSUB_SUBSCRIBER_LOCAL_VISIBLITY = "local";
 
-  public static final int UNSIGNED_INT_SIZE = 4;
-  public static final int CHAR_SIZE = 1;
-
+    //mandatory endpoint properties
+    public static final String PUBSUB_ENDPOINT_TOPIC_NAME = "pubsub.topic.name";
+    public static final String PUBSUB_ENDPOINT_TOPIC_SCOPE = "pubsub.topic.scope";
+    public static final String PUBSUB_ENDPOINT_UUID = "pubsub.endpoint.uuid";
+    public static final String PUBSUB_ENDPOINT_FRAMEWORK_UUID = "pubsub.framework.uuid";
+    public static final String PUBSUB_ENDPOINT_TYPE = "pubsub.endpoint.type"; //PUBSUB_PUBLISHER_ENDPOINT_TYPE or PUBSUB_SUBSCRIBER_ENDPOINT_TYPE
+    public static final String PUBSUB_ENDPOINT_ADMIN_TYPE = "pubsub.config";
+    public static final String PUBSUB_ENDPOINT_SERIALIZER = "pubsub.serializer";
+    public static final String PUBSUB_ENDPOINT_VISBILITY = "pubsub.visibility"; //SYSTEM or LOCAL
 }

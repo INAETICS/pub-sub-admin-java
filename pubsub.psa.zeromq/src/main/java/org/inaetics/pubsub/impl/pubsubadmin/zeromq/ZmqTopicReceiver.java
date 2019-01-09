@@ -15,8 +15,6 @@ package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
-import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
-import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.osgi.framework.BundleContext;

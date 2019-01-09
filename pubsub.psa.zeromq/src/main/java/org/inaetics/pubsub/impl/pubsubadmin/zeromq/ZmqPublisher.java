@@ -22,201 +22,84 @@ import org.inaetics.pubsub.spi.utils.Utils;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
+import java.io.ByteArrayOutputStream;
+import java.util.Properties;
+
 public class ZmqPublisher implements org.inaetics.pubsub.api.pubsub.Publisher {
 
-  private String topic;
-  private ZMQ.Socket socket;
-  private Serializer serializer;
-  private MultipartContainer multipartContainer;
+  private final String scope;
+  private final String topic;
+  private final ZMQ.Socket socket;
+  private final Serializer serializer;
+  private final ZFrame filterFrame;
 
   private final int FIRST_SEND_DELAY = 2; // in seconds
   private boolean firstSend = true;
 
-  public ZmqPublisher(String topic, ZMQ.Socket socket, Serializer serializer) {
+  public ZmqPublisher(String scope, String topic, ZMQ.Socket socket, Serializer serializer) {
+    this.scope = scope == null ? "default" : scope;
     this.topic = topic;
-    this.serializer = serializer;
     this.socket = socket;
+    this.serializer = serializer;
+
+    String filter = this.scope.length() >= 2 ? this.scope.substring(0,2) : "EE";
+    filter += this.topic.length() >= 2 ? this.topic.substring(0, 2) : "EE";
+    filterFrame = new ZFrame(filter);
+  }
+
+  public void connectTo(String url) {
+      socket.connect(url);
+  }
+
+  public void disconnectFrom(String url) {
+      socket.disconnect(url);
   }
 
   @Override
   public void send(Object msg) {
-    send(msg, 0);
-  }
-
-  @Override
-  public void send(Object msg, int msgTypeId) {
-
-    try {
-      sendMultipart(msg, msgTypeId, Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG);
-    } catch (MultipartException e) {
-      System.out.println("Error in send() method: " + e.getMessage());
+    boolean success = sendRawMsg(serializer.serialize(msg), msg.getClass());
+    if (!success) {
+      //TODO log warning
     }
-
   }
 
-  @Override
-  public void sendMultipart(Object msg, int flags) throws MultipartException {
-    sendMultipart(msg,0, flags);
-  }
 
-  @Override
-  public synchronized void sendMultipart(Object msg, int msgTypeId, int flags) throws MultipartException {
-
-    boolean objectAdded = false;
-
-    switch(flags){
-      case Publisher.PUBLISHER_FIRST_MSG:
-        if (multipartContainer == null) {
-          multipartContainer = new MultipartContainer();
-          multipartContainer.addObject(msg);
-          objectAdded = true;
-        } else {
-          throw new MultipartException("Can't have 2 first messages in a multipart send.");
-        }
-        break;
-
-      case Publisher.PUBLISHER_PART_MSG:
-        if (multipartContainer == null) {
-          throw new MultipartException("No first message sent");
-        }
-        if (!objectAdded) {
-          multipartContainer.addObject(msg);
-          objectAdded = true;
-        }
-
-        break;
-
-      case Publisher.PUBLISHER_LAST_MSG:
-        if (!objectAdded) {
-          multipartContainer.addObject(msg);
-          objectAdded = true;
-        }
-        send_pubsub_mp_msg(multipartContainer, msgTypeId);
-        multipartContainer = null;
-
-        break;
-
-      case Publisher.PUBLISHER_FIRST_MSG | Publisher.PUBLISHER_LAST_MSG: //Normal send case
-        send_pubsub_msg(serializer.serialize(msg), msgTypeId, msg.getClass().getName(), true);
-        break;
-
-      default:
-        System.out.println(this.getClass().getSimpleName() + ": ERROR: Invalid MP flags combination");
-        break;
-    }
-
-  }
-
-  @Override
-  public int localMsgTypeIdForMsgType(String msgType) {
-    return Utils.stringHash(msgType);
-  }
-
-  private synchronized boolean send_pubsub_msg(byte[] msg, int msgTypeId, String msgTypeClassName, boolean last){
+  private boolean sendRawMsg(byte[] msg, Class<?> msgClazz) {
 
     boolean success = true;
 
-    ZFrame headerMsg = new ZFrame(createHdrMsg(msgTypeId, msgTypeClassName));
-    ZFrame payloadMsg = new ZFrame(msg);
+    //Then a header containing type hash (unsigned int) and version info (major/minor) as two chars.
+    ZFrame headerFrame = headerFrameFor(msgClazz);
 
-    delay_first_send_for_late_joiners();
+    //Then the actual payload
+    ZFrame payloadFrame = new ZFrame(msg);
 
-    if (!headerMsg.send(this.socket, ZFrame.MORE)) success = false;
+    delayFirstSendForLateJoiners();
 
-    if (!last){
-      if (!payloadMsg.send(this.socket, ZFrame.MORE)) success = false;
-    } else {
-      if (!payloadMsg.send(this.socket, 0)) success = false;
+    success = filterFrame.send(this.socket, ZFrame.MORE);
+    if (success) {
+      success = headerFrame.send(this.socket, ZFrame.MORE);
     }
-
-    if (!success){
-      headerMsg.destroy();
-      payloadMsg.destroy();
+    if (success) {
+      success = payloadFrame.send(this.socket, 0);
     }
 
     return success;
   }
 
-  private synchronized boolean send_pubsub_mp_msg(MultipartContainer container, int msgTypeId) {
-
-    boolean success = true;
-
-    int containerSize = container.getObjects().size();
-    for (int i = 0; i < containerSize; i++){
-      success = success && send_pubsub_msg(serializer.serialize(container.getObjects().get(i)),
-              msgTypeId, container.getClasses().get(i), (i==containerSize-1));
-    }
-
-    return success;
-
+  private ZFrame headerFrameFor(Class<?> clazz) {
+    byte[] headerBytes = new byte[6]; //first 4 hashcode of the class
+    int hash = Utils.stringHash(clazz.getName());
+    headerBytes[0] = (byte)(hash & 0xFF);
+    headerBytes[1] = (byte)((hash >> 8) & 0xFF);
+    headerBytes[2] = (byte)((hash >> 16) & 0xFF);
+    headerBytes[3] = (byte)((hash >> 24) & 0xFF);
+    headerBytes[4] = 0; /*TODO major version*/
+    headerBytes[4] = 0; /*TODO minor version*/
+    return new ZFrame(headerBytes);
   }
 
-  private byte[] createHdrMsg(int msgTypeId, String msgTypeClassName) {
-
-    // Given the following struct in C:
-    // struct pubsub_msg_header{
-    //   char topic[MAX_TOPIC_LEN];
-    //   unsigned int type;
-    //   unsigned char major;
-    //   unsigned char minor;
-    //   char className[MAX_CLASS_LEN]; // TODO: Not in Celix (yet?)
-    // };
-    //
-    // The bytebuffer needs to be the exact same length in C and Java
-
-    int byteBufferLength = (Constants.MAX_TOPIC_LEN * Constants.CHAR_SIZE) +
-            Constants.UNSIGNED_INT_SIZE +
-            Constants.CHAR_SIZE +
-            Constants.CHAR_SIZE +
-            Constants.MAX_CLASS_LEN;
-
-    byte[] buff = new byte[byteBufferLength];
-
-    byte[] topicBytes = this.topic.getBytes();
-    if (this.topic.length() >= Constants.MAX_TOPIC_LEN){
-      System.arraycopy(topicBytes,
-              0,
-              buff,
-              0,
-              Constants.MAX_TOPIC_LEN - 2);
-
-      buff[Constants.MAX_TOPIC_LEN - 1] = '\0'; // terminate topic
-    } else {
-      System.arraycopy(topicBytes,
-              0,
-              buff,
-              0,
-              this.topic.getBytes().length);
-    }
-
-    buff[Constants.MAX_TOPIC_LEN]     = (byte) (msgTypeId >> 24);
-    buff[Constants.MAX_TOPIC_LEN + 1] = (byte) (msgTypeId >> 16);
-    buff[Constants.MAX_TOPIC_LEN + 2] = (byte) (msgTypeId >> 8);
-    buff[Constants.MAX_TOPIC_LEN + 3] = (byte) (msgTypeId);
-
-    buff[Constants.MAX_TOPIC_LEN + 4] = '1';
-    buff[Constants.MAX_TOPIC_LEN + 5] = '0';
-
-    int startPositionCN = Constants.MAX_TOPIC_LEN + 6;
-    int endPositionCN = byteBufferLength - 1;
-
-    byte[] classNameBytes = msgTypeClassName.getBytes();
-
-    if (msgTypeClassName.length() >= Constants.MAX_CLASS_LEN){
-      // class name is to long and must be truncated
-      System.arraycopy(classNameBytes, 0, buff, startPositionCN, endPositionCN - 1);
-      buff[endPositionCN] = '\0'; // terminate topic
-
-    } else {
-      System.arraycopy(classNameBytes, 0, buff, startPositionCN, classNameBytes.length);
-    }
-
-    buff[endPositionCN] = '\0';
-
-    return buff;
-  }
-
-  private void delay_first_send_for_late_joiners() {
+  private void delayFirstSendForLateJoiners() {
     if(firstSend){
       System.out.println(this.getClass().getSimpleName() + ": Delaying first send for late joiners...");
       try {

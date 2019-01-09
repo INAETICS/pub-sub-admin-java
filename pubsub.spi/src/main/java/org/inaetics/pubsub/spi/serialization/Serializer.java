@@ -14,36 +14,23 @@
 package org.inaetics.pubsub.spi.serialization;
 
 public interface Serializer {
-  
-  public static final String SERIALIZER = "serializer";
 
-  /**
-   * Serialize the input. 
-   * @param obj       The object to serialize
-   * @return          The bytes representing the serialized object
-   */
-  public byte[] serialize(Object obj);
+    public static final String SERIALIZER_NAME_KEY = "serializer";
 
-  /**
-   * Serialize the input.
-   * @param container The MultipartContainer to serialize
-   * @return          The bytes representing the input container
-   */
-  public byte[] serialize(MultipartContainer container);
+    /**
+     * Serialize the input.
+     *
+     * @param obj The object to serialize
+     * @return The bytes representing the serialized object
+     */
+    public byte[] serialize(Object obj);
 
-  /**
-   * Deserialize the input.
-   * @param clazz     The class name of the object which must be deserialized
-   * @param bytes     The byte representing the object
-   * @return          The deserialized object
-   */
-  public Object deserialize(String clazz, byte[] bytes);
-
-  /**
-   * Deserialize the input.
-   * @param bytes     The bytes representing a MultipartContainer
-   * @return          The deserialized MultipartContainer
-   */
-  public MultipartContainer deserialize(byte[] bytes);
-
+    /**
+     * Deserialize the input.
+     *
+     * @param clazz The class name of the object which must be deserialized
+     * @param bytes The byte representing the object
+     * @return The deserialized object
+     */
+    public Object deserialize(String clazz, byte[] bytes);
 }

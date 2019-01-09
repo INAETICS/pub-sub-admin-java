@@ -20,7 +20,6 @@ import org.apache.felix.dm.annotation.api.Component;
 import org.apache.felix.dm.annotation.api.Destroy;
 import org.apache.felix.dm.annotation.api.Start;
 import org.apache.felix.dm.annotation.api.Stop;
-import org.inaetics.pubsub.spi.serialization.MultipartContainer;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.osgi.service.log.LogService;
 
@@ -31,105 +30,60 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Component
 public class JacksonSerializer implements Serializer {
 
-  private ObjectMapper mapper = new ObjectMapper();
-  private volatile LogService logService;
-  public static final String SERIALIZER_JACKSON = "json";
+    private ObjectMapper mapper = new ObjectMapper();
+    private volatile LogService logService;
+    public static final String SERIALIZER_JACKSON = "json";
 
-  @Override
-  public byte[] serialize(Object obj) {
-    try {
-      return mapper.writeValueAsBytes(obj);
+    @Override
+    public byte[] serialize(Object obj) {
+        try {
+            return mapper.writeValueAsBytes(obj);
 
-    } catch (JsonProcessingException e) {
-      logService.log(LogService.LOG_ERROR, "Exception during JSON serialize", e);
+        } catch (JsonProcessingException e) {
+            logService.log(LogService.LOG_ERROR, "Exception during JSON serialize", e);
+        }
+
+        return null;
     }
 
-    return null;
-  }
+    @Override
+    public Object deserialize(String clazz, byte[] bytes) {
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        try {
+            String json = new String(bytes);
 
-  @Override
-  public byte[] serialize(MultipartContainer container) {
-    try {
-      return mapper.writeValueAsBytes(container);
+            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
 
-    } catch (JsonProcessingException e) {
-      logService.log(LogService.LOG_ERROR, "Exception during JSON serialize", e);
+            JsonNode object = mapper.readTree(json);
+
+            final Class<?> cls = Class.forName(clazz);
+
+            Object obj = mapper.convertValue(object, cls);
+
+            return obj;
+        } catch (IOException e) {
+            logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
+        } catch (ClassNotFoundException e) {
+            logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
+        } finally {
+            Thread.currentThread().setContextClassLoader(loader);
+        }
+        return null;
     }
 
-    return null;
-  }
-
-  @Override
-  public Object deserialize(String clazz, byte[] bytes) {
-    ClassLoader loader = Thread.currentThread().getContextClassLoader();
-    try {
-      String json = new String(bytes);
-      
-      Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-
-      JsonNode object = mapper.readTree(json);
-
-      final Class<?> cls = Class.forName(clazz);
-
-      Object obj = mapper.convertValue(object, cls);
-
-      return obj;
-    } catch (IOException e) {
-      logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
-    } catch (ClassNotFoundException e) {
-      logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
-    } finally {
-      Thread.currentThread().setContextClassLoader(loader);
+    @Start
+    protected final void start() {
+        System.out.println("STARTED " + this.getClass().getName());
     }
-    return null;
-  }
 
-  @Override
-  public MultipartContainer deserialize(byte[] bytes) {
-    ClassLoader loader = Thread.currentThread().getContextClassLoader();
-    try {
-      String json = new String(bytes);
-      
-      Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
-
-      MultipartContainer container = new MultipartContainer();
-      JsonNode jsonNode = mapper.readTree(json);
-      Iterator<JsonNode> classes = jsonNode.get("classes").elements();
-      Iterator<JsonNode> objects = jsonNode.get("objects").elements();
-
-      while (objects.hasNext() && classes.hasNext()) {
-        JsonNode object = (JsonNode) objects.next();
-        JsonNode clazz = (JsonNode) classes.next();
-
-        final Class<?> cls = Class.forName(clazz.asText());
-        Object obj = mapper.convertValue(object, cls);
-        container.addObject(obj);
-      }
-
-      return container;
-    } catch (IOException e) {
-      logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
-    } catch (ClassNotFoundException e) {
-      logService.log(LogService.LOG_ERROR, "Exception during JSON deserialize", e);
-    } finally {
-      Thread.currentThread().setContextClassLoader(loader);
+    @Stop
+    protected final void stop() {
+        System.out.println("STOPPED " + this.getClass().getName());
     }
-    return null;
-  }
 
-  @Start
-  protected final void start(){
-    System.out.println("STARTED " + this.getClass().getName());
-  }
-
-  @Stop
-  protected final void stop(){
-    System.out.println("STOPPED " + this.getClass().getName());
-  }
-
-  @Destroy
-  protected final void destroy(){
-    System.out.println("DESTROYED " + this.getClass().getName());
-  }
+    @Destroy
+    protected final void destroy() {
+        System.out.println("DESTROYED " + this.getClass().getName());
+    }
 
 }

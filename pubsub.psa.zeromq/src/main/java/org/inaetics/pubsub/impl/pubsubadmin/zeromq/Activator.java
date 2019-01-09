@@ -19,6 +19,7 @@ import java.util.Hashtable;
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
+import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.service.log.LogService;
@@ -42,10 +43,9 @@ public class Activator extends DependencyActivatorBase {
             .add(createServiceDependency()
                 .setService(LogService.class)
                 .setRequired(false))
-            .add(createConfigurationDependency()
-                .setRequired(false)
-                .setPid(ZmqPubSubAdmin.SERVICE_PID)
-            )
+            .add(createServiceDependency()
+                .setService(Serializer.class)
+                .setCallbacks("addSerializer", "removeSerializer"))
       );
 
     } catch (Exception e) {

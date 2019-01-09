@@ -13,6 +13,7 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.topologymanager;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Dictionary;
@@ -20,22 +21,23 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.felix.dm.annotation.api.Destroy;
 import org.apache.felix.dm.annotation.api.Start;
 import org.apache.felix.dm.annotation.api.Stop;
-import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
 import org.inaetics.pubsub.api.pubsub.Publisher;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
+import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
+import org.inaetics.pubsub.spi.discovery.DiscoveredEndpointListener;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
-import org.inaetics.pubsub.spi.pubsubadmin.TopicHandler;
-import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
-import org.inaetics.pubsub.spi.pubsubadmin.TopicSender;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
 import org.osgi.framework.Bundle;
@@ -54,467 +56,617 @@ import org.osgi.service.event.Event;
 import org.osgi.service.event.EventHandler;
 import org.osgi.service.log.LogService;
 
-
-public class PubSubTopologyManager implements ListenerHook, ServiceListener, EventHandler, ManagedService {
-
-  public final static String SERVICE_PID = PubSubTopologyManager.class.getName();
-
-  private final List<PubSubAdmin> pubSubAdmins = new CopyOnWriteArrayList<>();
-  private final List<DiscoveryManager> discoveryManagers = new CopyOnWriteArrayList<>();
-
-  private BundleContext bundleContext = FrameworkUtil.getBundle(PubSubTopologyManager.class).getBundleContext();
-
-  private volatile LogService m_LogService;
-
-  private final Map<String, TopicSender> senders = new HashMap<>();
-
-  private final Map<String, TopicReceiver> receivers = new HashMap<>();
-
-  private final Set<Map<String, String>> publisherEndpoints = new HashSet<>();
-  private final Set<Map<String, String>> subscriberEndpoints = new HashSet<>();
-
-  private final Map<Publisher, ServiceRegistration<Publisher>> publishers = new HashMap<>();
-
-  private ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-  public static volatile int DELETE_DELAY = 10;
+import static org.osgi.framework.Constants.SERVICE_ID;
 
 
-  /**
-   * Implementation of ListenerHook. Called when a bundle requests a Service. If the Service is a
-   * Publisher, Add it to a TopicSender.
-   */
-  @Override
-  public synchronized void added(Collection<ListenerInfo> listeners) {
-    for (ListenerInfo info : listeners) {
-      try {
-        if (info.getFilter() != null) {
-          Filter filter = FrameworkUtil.createFilter(info.getFilter());
-          if (isFilterForPublisher(filter)) {
-            System.out.println(this.getClass().getSimpleName() + " added publisher " + filter);
+public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointListener, ManagedService {
 
-            if (!info.isRemoved()) {
-              Bundle user = info.getBundleContext().getBundle();
-              Map<String, String> filterProperties = Utils.verySimpleLDAPFilterParser(filter);
-              String topic = Utils.getTopicFromProperties(filterProperties);
-              if (senders.get(topic) == null) {
-                TopicSender sender = getTopicSender(user, filter);
-                
-                if (sender != null) {
+    private class TopicSenderOrReceiverEntry {
+        public String key = null; //(sender-/receiver-)${scope}-${topic}
+        public String scope = null;
+        public String topic = null;
+        public Properties endpoint = null;
 
-                  for (Map<String, String> publisher : publisherEndpoints) {
-                    sender.addPublisherEndpoint(publisher);
-                  }
+        public int usageCount = 1; //nr of subscriber service for the topic receiver (matching scope & topic)
+        public Properties topicProperties;
+        public long selectedPsaSvcId = -1L;
+        public long selectedSerializerSvcId = -1L;
+        public long bndId = -1L;
+        public boolean rematch = false;
 
-                  for (Map<String, String> subscriber : subscriberEndpoints) {
-                    sender.addSubscriberEndpoint(subscriber);
-                  }
+        //for sender entry
+        public String publisherFilter = null;
 
-                  sender.open();
-                  senders.put(topic, sender);
+        //for receiver entry
+        public Properties subscriberProperties = null;
 
-                  Map<String, String> endpoint = sender.getEndpointProperties();
-                  for (DiscoveryManager discoveryManager : discoveryManagers) {
-                    discoveryManager.announcePublisher(endpoint);
-
-                  }
-                }
-              }
-            }
-          }
+        public boolean isForSender() {
+            return publisherFilter != null;
         }
-      } catch (InvalidSyntaxException e) {
-        // Requesters should provide valid filters. Skip non-valid
-        m_LogService.log(LogService.LOG_WARNING, e.getMessage(), e);
-        continue;
-      }
+
+        public boolean isForReceiver() {
+            return subscriberProperties != null;
+        }
     }
-  }
 
-  /**
-   * Implementation of ListenerHook. Called when a bundle stops requesting a Service. If the Service
-   * is a Publisher, remove it from its TopicSender.
-   */
-  @Override
-  public synchronized void removed(Collection<ListenerInfo> listeners) {
-    for (ListenerInfo info : listeners) {
+    private class DiscoveredEndpointEntry {
+        public String uuid = null;
+        public long selectedPsaSvcId = -1L; // -1L, indicates no selected psa
+        public int usageCount = 0; //note that discovered endpoints can be found multiple times by different pubsub discovery components
+        public Properties endpoint = null;
+    }
 
-      try {
-        if (info.getFilter() != null) {
-          Filter filter = FrameworkUtil.createFilter(info.getFilter());
+    public final static String SERVICE_PID = PubSubTopologyManager.class.getName();
 
-          if (isFilterForPublisher(filter)) {
+    private final int PSA_UPDATE_DELAY = 15;
 
-            Bundle user = info.getBundleContext().getBundle();
-            Map<String, String> filterProperties = Utils.verySimpleLDAPFilterParser(filter);
-            String topic = Utils.getTopicFromProperties(filterProperties);
-            if (senders.get(topic) != null) {
-              final TopicSender sender = senders.get(topic);
+    private volatile boolean verbose = true;
 
-              executorService.schedule(new Runnable() {
-                @Override
-                public void run() {
-                  synchronized (PubSubTopologyManager.class) {
-                    if (!sender.isActive()) {
-                      sender.close();
-                      senders.remove(topic);
+    private final Map<Long, PubSubAdmin> pubSubAdmins = new HashMap<>();
+    private final List<AnnounceEndpointListener> announceEndpointListeners = new ArrayList<>();
 
-                      for (DiscoveryManager discoveryManager : discoveryManagers) {
-                        discoveryManager.removePublisher(sender.getEndpointProperties());
-                      }
+    private volatile LogService m_LogService;
+
+    private final Map<String, TopicSenderOrReceiverEntry> sendersAndReceivers = new HashMap<>();
+
+    private final Map<String, DiscoveredEndpointEntry> discoveredEndpoints = new HashMap<>();
+
+    private final Thread psaHandlingThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            while (!Thread.interrupted()) {
+                psaHandling();
+                synchronized (psaHandlingThread) {
+                    try {
+                        wait(PSA_UPDATE_DELAY * 1000);
+                    } catch (InterruptedException e) {
+                        return;
                     }
-                  }
                 }
-              }, DELETE_DELAY, TimeUnit.SECONDS);
             }
-          }
         }
-      } catch (InvalidSyntaxException e) {
-        // Requesters should provide valid filters. Skip non-valid
-        m_LogService.log(LogService.LOG_WARNING, e.getMessage(), e);
-        continue;
-      }
-    }
-  }
+    });
 
-  /**
-   * Implementation of ServiceListener. Receives events when a Subscriber is (un)registered.
-   */
-  @Override
-  public synchronized void serviceChanged(ServiceEvent event) {
-    if (event.getServiceReference().getProperty("objectClass") != null) {
-      String[] objectClasses = (String[]) event.getServiceReference().getProperty("objectClass");
-      if (Arrays.asList(objectClasses).contains(Subscriber.class.getName())) {
-        ServiceReference reference = event.getServiceReference();
-        switch (event.getType()) {
-          case ServiceEvent.REGISTERED:
-            connectSubscriber(reference);
-            break;
-          case ServiceEvent.MODIFIED:
-            disconnectSubscriber(reference);
-            connectSubscriber(reference);
-            break;
-          case ServiceEvent.MODIFIED_ENDMATCH:
-          case ServiceEvent.UNREGISTERING:
-            disconnectSubscriber(reference);
-            break;
-          default:
-            break;
+    public void start() {
+        psaHandlingThread.start();
+    }
+
+    public void stop() {
+        try {
+            psaHandlingThread.interrupt();
+            psaHandlingThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-      }
     }
-  }
 
-  /**
-   * Disconnect a Subscriber from a TopicReceiver.
-   * 
-   * @param reference
-   */
-  private void disconnectSubscriber(ServiceReference reference) {
-    Map<String, String> properties = Utils.getPropertiesFromReference(reference);
-    String topic = Utils.getTopicFromProperties(properties);
+    public void psaHandling() {
+        this.teardownTopicSenderAndReceivers();
+        this.setupTopicSendersAndReceivers();
+        this.findPsaForEndpoint();
+    }
 
-    TopicReceiver receiver = receivers.get(topic);
-    if (receiver != null) {
-      receiver.disconnectSubscriber(reference);
-      if (!receiver.isActive()) {
-        executorService.schedule(new Runnable() {
-          @Override
-          public void run() {
-            if (!receiver.isActive()) {
-              receiver.close();
-              receivers.remove(topic);
+    public void adminAdded(PubSubAdmin admin, Properties props) {
+        String svcIdStr = props.getProperty(SERVICE_ID);
+        long svcId = Long.parseLong(svcIdStr == null ? "-1L" : svcIdStr);
 
-              for (DiscoveryManager discoveryManager : discoveryManagers) {
-                discoveryManager.removeSubscriber(receiver.getEndpointProperties());
-              }
+        synchronized (this.pubSubAdmins) {
+            pubSubAdmins.put(svcId, admin);
+        }
+
+        synchronized (this.sendersAndReceivers) {
+            for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                entry.rematch = true; //new PSA -> run a rematch and if needed teardown and setup a new TopicSender/Receiver
             }
-          }
-        }, DELETE_DELAY, TimeUnit.SECONDS);
-      }
-    }
-  }
-
-  /**
-   * Connect a Subscriber to a TopicReceiver.
-   * 
-   * @param reference
-   */
-  private void connectSubscriber(ServiceReference reference) {
-    Map<String, String> properties = Utils.getPropertiesFromReference(reference);
-    String topic = Utils.getTopicFromProperties(properties);
-
-    TopicReceiver receiver = null;
-    if (receivers.get(topic) != null) {
-      receiver = receivers.get(topic);
-      receiver.connectSubscriber(reference);
-    } else {
-      receiver = getTopicReceiver(reference);
-
-      if (receiver != null) {
-        receivers.put(topic, receiver);
-        receiver.connectSubscriber(reference);
-
-        for (Map<String, String> publisher : publisherEndpoints) {
-          receiver.addPublisherEndpoint(publisher);
         }
 
-        for (Map<String, String> subscriber : subscriberEndpoints) {
-          receiver.addSubscriberEndpoint(subscriber);
+        synchronized (this.psaHandlingThread) {
+            psaHandlingThread.notify();
+            ;
+        }
+    }
+
+    public void adminRemoved(PubSubAdmin admin, Properties props) {
+        String svcIdStr = props.getProperty(SERVICE_ID);
+        long svcId = Long.parseLong(svcIdStr == null ? "-1L" : svcIdStr);
+
+        //NOTE psa shutdown should teardown topic receivers / topic senders
+        //de-setup all topic receivers/senders for the removed psa.
+        //the next psaHandling run will try to find new psa.
+
+        synchronized (this.pubSubAdmins) {
+            pubSubAdmins.remove(svcId);
         }
 
-        receiver.open();
+        List<Properties> revokes = new ArrayList<Properties>();
 
-        for (DiscoveryManager discoveryManager : discoveryManagers) {
-          discoveryManager.announceSubscriber(receiver.getEndpointProperties());
+        synchronized (this.sendersAndReceivers) {
+            for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                if (entry.selectedPsaSvcId == svcId) {
+                    revokes.add(entry.endpoint);
+                    entry.endpoint = null;
+                    entry.selectedPsaSvcId = -1L;
+                    entry.rematch = true;
+                }
+            }
         }
-      }
-    }
-  }
 
-  /**
-   * Get a TopicSender from the PubSubAdmin with the highest score.
-   * 
-   * @param user
-   * @param filter
-   * @return
-   */
-  private TopicSender getTopicSender(Bundle user, Filter filter) {
-    double highestScore = 0;
-    PubSubAdmin bestAdmin = null;
-
-    for (PubSubAdmin admin : pubSubAdmins) {
-
-      double score = admin.matchPublisher(user, filter);
-
-      if (score > highestScore) {
-        highestScore = score;
-        bestAdmin = admin;
-      }
-    }
-
-    if (bestAdmin != null) {
-      return bestAdmin.createTopicSender(user, filter);
-    }
-    return null;
-  }
-
-  /**
-   * Get a TopicReceiver from the PubSubAdmin with the highest score.
-   * 
-   * @param subscriber
-   * @return
-   */
-  private TopicReceiver getTopicReceiver(ServiceReference<Subscriber> subscriber) {
-    double highestScore = -1;
-    PubSubAdmin bestAdmin = null;
-
-    for (PubSubAdmin admin : pubSubAdmins) {
-
-      double score = admin.matchSubscriber(subscriber);
-
-      if (score > highestScore) {
-        highestScore = score;
-        bestAdmin = admin;
-      }
-    }
-
-    if (bestAdmin != null) {
-      return bestAdmin.createTopicReceiver(subscriber);
-    }
-
-    return null;
-  }
-
-  /**
-   * Implementation of ManagedService.
-   */
-  @Override
-  public void updated(Dictionary<String, ?> properties) throws ConfigurationException {
-
-    if (properties != null) {
-      if (properties.get("delete.delay") != null) {
-        DELETE_DELAY = Integer.parseInt((String) properties.get("delete.delay"));
-      }
-    }
-  }
-
-  /**
-   * Implementation of EventHandler. Used to receive messages from DiscoveryManagers about the
-   * creation/deletion of endpoints.
-   */
-  @Override
-  public synchronized void handleEvent(Event event) {
-    String eventType = (String) event.getProperty(Constants.DISCOVERY_EVENT_TYPE);
-    Map<String, String> info = (Map<String, String>) event.getProperty(Constants.DISCOVERY_INFO);
-
-    switch (eventType) {
-      case Constants.DISCOVERY_EVENT_TYPE_CREATED:
-        if (info.get(Constants.PUBSUB_TYPE).equals(Constants.PUBLISHER)) {
-          addpublisherEndpoint(info);
-        } else if (info.get(Constants.PUBSUB_TYPE).equals(Constants.SUBSCRIBER)) {
-          addSubscriberEndpoint(info);
+        synchronized (this.announceEndpointListeners) {
+            for (Properties ep : revokes) {
+                for (AnnounceEndpointListener listener : this.announceEndpointListeners) {
+                    listener.revokeEndpoint(ep);
+                }
+            }
         }
-        break;
-      case Constants.DISCOVERY_EVENT_TYPE_DELETED:
-        if (info.get(Constants.PUBSUB_TYPE).equals(Constants.PUBLISHER)) {
-          removePublisherEndpoint(info);
-        } else if (info.get(Constants.PUBSUB_TYPE).equals(Constants.SUBSCRIBER)) {
-          removeSubscriberEndpoint(info);
+    }
+
+    @Override
+    public void addDiscoveredEndpoint(Properties endpoint) {
+
+        String uuid = endpoint.getProperty(Constants.PUBSUB_ENDPOINT_UUID);
+        assert (uuid != null);
+
+        // 1) See if endpoint is already discovered, if so increase usage count.
+        // 1) If not, find matching psa using the matchEndpoint
+        // 2) if found call addEndpoint of the matching psa
+
+        if (verbose) {
+            m_LogService.log(LogService.LOG_DEBUG, String.format("PSTM: Discovered endpoint added for topic %s with scope %s [fwUUID=%s, epUUID=%s]\n",
+                    endpoint.get(Constants.PUBSUB_ENDPOINT_TOPIC_NAME),
+                    endpoint.get(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE),
+                    endpoint.get(Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID),
+                    uuid));
         }
-        break;
-      default:
-        break;
-    }
-  }
 
-  /**
-   * Add a Publisher endpoint to the known endpoints.
-   * 
-   * @param endpoint
-   */
-  private void addpublisherEndpoint(Map<String, String> endpoint) {
-    publisherEndpoints.add(endpoint);
 
-    for (TopicHandler handler : senders.values()) {
-      handler.addPublisherEndpoint(endpoint);
-    }
-    for (TopicHandler handler : receivers.values()) {
-      handler.addPublisherEndpoint(endpoint);
-    }
-  }
+        synchronized (discoveredEndpoints) {
+            DiscoveredEndpointEntry entry = discoveredEndpoints.get(uuid);
+            if (entry != null) {
+                entry.usageCount += 1;
+            } else {
+                entry = new DiscoveredEndpointEntry();
+                entry.usageCount = 1;
+                entry.endpoint = endpoint;
+                //note selectedPsaSvcId is stil -1 -> no psa selected yet -> psa handling thread should try to find psa
+                //for psa handling
 
-  /**
-   * Remove a Publisher endpoint from the known endpoints.
-   * 
-   * @param endpoint
-   */
-  private void removePublisherEndpoint(Map<String, String> endpoint) {
-    publisherEndpoints.remove(endpoint);
-
-    for (TopicHandler handler : senders.values()) {
-      handler.removePublisherEndpoint(endpoint);
-    }
-    for (TopicHandler handler : receivers.values()) {
-      handler.removePublisherEndpoint(endpoint);
-    }
-  }
-
-  /**
-   * Add a Subscriber endpoint to the known endpoints.
-   * 
-   * @param endpoint
-   */
-  private void addSubscriberEndpoint(Map<String, String> endpoint) {
-    subscriberEndpoints.add(endpoint);
-
-    for (TopicHandler handler : senders.values()) {
-      handler.addSubscriberEndpoint(endpoint);
-    }
-    for (TopicHandler handler : receivers.values()) {
-      handler.addSubscriberEndpoint(endpoint);
-    }
-  }
-
-  /**
-   * Remove a Subscriber endpoint from the known endpoints.
-   * 
-   * @param endpoint
-   */
-  private void removeSubscriberEndpoint(Map<String, String> endpoint) {
-    subscriberEndpoints.remove(endpoint);
-
-    for (TopicHandler handler : senders.values()) {
-      handler.removeSubscriberEndpoint(endpoint);
-    }
-    for (TopicHandler handler : receivers.values()) {
-      handler.removeSubscriberEndpoint(endpoint);
-    }
-  }
-
-  /**
-   * Inform the TopicHandler of all Publisher and Subscriber endpoints.
-   * 
-   * @param handler
-   */
-  private void informHandlerOfEndpoints(TopicHandler handler) {
-    for (Map<String, String> endpoint : publisherEndpoints) {
-      handler.addPublisherEndpoint(endpoint);
-    }
-    for (Map<String, String> endpoint : subscriberEndpoints) {
-      handler.addSubscriberEndpoint(endpoint);
-    }
-  }
-
-  private boolean isFilterForPublisher(Filter filter) {
-    return filter.toString().contains(Publisher.class.getName());
-  }
-
-  // DependencyManager callback
-  private void adminAdded(PubSubAdmin admin) {
-    pubSubAdmins.add(admin);
-    System.out.println("PSA added: " + admin.getClass().getName());
-  }
-
-  // DependencyManager callback
-  private void adminRemoved(PubSubAdmin admin) {
-    pubSubAdmins.remove(admin);
-    System.out.println("PSA removed: " + admin.getClass().getName());
-  }
-
-  // DependencyManager callback
-  private synchronized void discoveryManagerAdded(DiscoveryManager manager) {
-    discoveryManagers.add(manager);
-    System.out.println("DiscoveryManager added: " + manager.getClass().getName());
-
-    publisherEndpoints.addAll(manager.getCurrentPublisherEndPoints());
-    subscriberEndpoints.addAll(manager.getCurrentSubscriberEndPoints());
-  }
-
-  // DependencyManager callback
-  private void discoveryManagerRemoved(DiscoveryManager manager) {
-    discoveryManagers.remove(manager);
-    System.out.println("DiscoveryManager removed: " + manager.getClass().getName());
-  }
-
-  @Start
-  protected final void start() throws Exception {
-    System.out.println("STARTED " + this.getClass().getName());
-    
-    ServiceReference[] references = bundleContext.getAllServiceReferences(Subscriber.class.getName(), null);
-
-    if (references != null) {
-      for (ServiceReference reference : references) {
-        connectSubscriber(reference);
-      }
+                synchronized (psaHandlingThread) {
+                    psaHandlingThread.notify();
+                    ;
+                }
+            }
+        }
     }
 
-    bundleContext.addServiceListener(this, "(objectClass=" + Subscriber.class.getName() + ")");
+    @Override
+    public void removeDiscoveredEndpoint(Properties endpoint) {
+        String uuid = endpoint.getProperty(Constants.PUBSUB_ENDPOINT_UUID);
+        assert (uuid != null);
 
-  }
+        // 1) See if endpoint is already discovered, if so decrease usage count.
+        // 1) If usage count becomes 0, find matching psa using the matchEndpoint
+        // 2) if found call disconnectEndpoint of the matching psa
 
-  @Stop
-  protected final synchronized void stop() throws Exception {
-    System.out.println("STOPPED " + this.getClass().getName());
+        if (verbose) {
+            m_LogService.log(LogService.LOG_DEBUG, String.format("PSTM: Discovered endpoint removed for topic %s with scope %s [fwUUID=%s, epUUID=%s]\n",
+                    endpoint.get(Constants.PUBSUB_ENDPOINT_TOPIC_NAME),
+                    endpoint.get(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE),
+                    endpoint.get(Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID),
+                    uuid));
+        }
 
-    for (TopicSender sender : senders.values()) {
-      sender.close();
-      for (DiscoveryManager discoveryManager : discoveryManagers) {
-        discoveryManager.removePublisher(sender.getEndpointProperties());
-      }
+        DiscoveredEndpointEntry entry = null;
+        synchronized (discoveredEndpoints) {
+            entry = discoveredEndpoints.remove(uuid);
+        }
+
+        if (entry != null) {
+            if (entry.selectedPsaSvcId >= 0) {
+                synchronized (this.pubSubAdmins) {
+                    PubSubAdmin admin = this.pubSubAdmins.get(entry.selectedPsaSvcId);
+                    if (admin != null) {
+                        admin.removeDiscoveredEndpoint(entry.endpoint);
+                    } else {
+                        m_LogService.log(LogService.LOG_WARNING, "Cannot find configured psa for endpoint " + uuid);
+
+                    }
+                }
+            } else {
+                m_LogService.log(LogService.LOG_DEBUG, "No selected psa for endpoint " + uuid);
+            }
+        }
     }
-    for (TopicReceiver receiver : receivers.values()) {
-      receiver.close();
-      for (DiscoveryManager discoveryManager : discoveryManagers) {
-        discoveryManager.removeSubscriber(receiver.getEndpointProperties());
-      }
+
+    public void announceEndointListenerAdded(AnnounceEndpointListener listener) {
+        synchronized (this.announceEndpointListeners) {
+            this.announceEndpointListeners.add(listener);
+        }
+        synchronized (this.sendersAndReceivers) {
+            for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                if (entry.endpoint != null) {
+                    listener.announceEndpoint(entry.endpoint);
+                }
+            }
+        }
     }
-  }
 
-  @Destroy
-  protected final void destroy() {
-    System.out.println("DESTROYED " + this.getClass().getName());
-  }
+    public void announceEndointListenerRemoved(AnnounceEndpointListener listener) {
+        synchronized (this.announceEndpointListeners) {
+            this.announceEndpointListeners.remove(listener);
+        }
+    }
+
+    private String topicReceiverKey(final String scope, final String topic) {
+        return "receiver-" + scope + "-" + topic;
+
+    }
+
+    private String topicSenderKey(final String scope, final String topic) {
+        return "sender-" + scope + "-" + topic;
+
+    }
+
+    public void subscriberAdded(Subscriber svc, Properties props, Bundle svcOwner) {
+        //NOTE new local subscriber service register
+        //1) First trying to see if a TopicReceiver already exists for this subscriber, if found
+        //2) update the usage count. if not found
+        //3) signal psaHandling thread to setup topic receiver
+
+        String topic = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, null);
+        String scope = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "default");
+        if (topic == null) {
+            this.m_LogService.log(LogService.LOG_WARNING, "[PSTM] Warning subscriber service without mandatory %s property.");
+            return;
+        }
+
+        long bndId = svcOwner.getBundleId();
+        String key = topicReceiverKey(scope, topic);
+
+        boolean newEntry = false;
+        synchronized (this.sendersAndReceivers) {
+            TopicSenderOrReceiverEntry entry = this.sendersAndReceivers.get(key);
+            if (entry != null) {
+                entry.usageCount += 1;
+            } else {
+                newEntry = true;
+                entry = new TopicSenderOrReceiverEntry();
+                entry.key = key;
+                entry.scope = scope;
+                entry.topic = topic;
+                entry.bndId = bndId;
+                this.sendersAndReceivers.put(key, entry);
+            }
+        }
+
+        if (newEntry) {
+            synchronized (this.psaHandlingThread) { //TODO check if synchronized is needed for notify...
+                this.psaHandlingThread.notify();
+            }
+        }
+    }
+
+    public void subscriberRemoved(Subscriber svc, Properties props) {
+        //NOTE local subscriber service unregister
+        //1) Find topic receiver and decrease count
+
+        String topic = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, null);
+        String scope = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "default");
+        if (topic == null) {
+            this.m_LogService.log(LogService.LOG_WARNING, "[PSTM] Warning subscriber service without mandatory %s property.");
+            return;
+        }
+
+        String key = topicReceiverKey(scope, topic);
+        synchronized (this.sendersAndReceivers) {
+            TopicSenderOrReceiverEntry entry = this.sendersAndReceivers.get(key);
+            if (entry != null) {
+                entry.usageCount -= 0;
+                //note no notify needed, because the topicreceiver does not have to go away immediately
+            }
+        }
+    }
+
+    private String extractAttributeFromFilter(final String filter, final String attribute) {
+        String result = null;
+        Pattern pattern = Pattern.compile("\\(" + attribute + "=(.*)\\)");
+        Matcher m = pattern.matcher(filter);
+        return m.group(0);
+    }
 
 
+    @Override
+    public void added(Collection<ListenerInfo> collection) {
+        boolean newEntry = false;
+        for (ListenerInfo info : collection) {
+            //TODO improve -> parse filter
+            if (!info.getFilter().contains("objectClass=" + Publisher.class.getName())) {
+                continue;
+            }
 
+            //NOTE new local publisher service requested
+            //1) First trying to see if a TopicSender already exists for this publisher, if found
+            //2) update the usage count. if not found
+            //3) signal psaHandling thread to find a psa and setup TopicSender
+
+            String scope = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE);
+            String topic = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_NAME);
+            scope = scope != null ? scope : "default";
+
+            if (topic == null) {
+                m_LogService.log(LogService.LOG_WARNING, "[PSTM] Cannot find topic for publisher request");
+                continue;
+            }
+
+            String key = this.topicSenderKey(scope, topic);
+            synchronized (this.sendersAndReceivers) {
+                TopicSenderOrReceiverEntry entry = this.sendersAndReceivers.get(key);
+                if (entry != null) {
+                    entry.usageCount += 1;
+                } else {
+                    newEntry = true;
+                    entry = new TopicSenderOrReceiverEntry();
+                    entry.key = key;
+                    entry.topic = topic;
+                    entry.scope = scope;
+                    this.sendersAndReceivers.put(key, entry);
+                }
+            }
+        }
+
+
+        if (newEntry) {
+            synchronized (this.psaHandlingThread) {
+                this.psaHandlingThread.notify();
+            }
+        }
+    }
+
+    @Override
+    public void removed(Collection<ListenerInfo> collection) {
+        for (ListenerInfo info : collection) {
+            if (info.getFilter().contains("objectClass=" + Publisher.class.getName())) {
+                continue;
+            }
+
+            String scope = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE);
+            String topic = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_NAME);
+            scope = scope != null ? scope : "default";
+            if (topic == null) {
+                m_LogService.log(LogService.LOG_WARNING, "[PSTM] Cannot find topic for removed publisher request");
+                continue;
+            }
+
+            //NOTE local publisher request removed
+            //1) Find topic sender and decrease count
+
+            String key = this.topicSenderKey(scope, topic);
+            synchronized (this.sendersAndReceivers) {
+                TopicSenderOrReceiverEntry entry = this.sendersAndReceivers.get(key);
+                if (entry != null) {
+                    entry.usageCount -= 1;
+                }
+            }
+        }
+    }
+
+    @Override
+    public void updated(Dictionary<String, ?> dictionary) throws ConfigurationException {
+        //TODO
+    }
+
+    private void teardownTopicSenderAndReceivers() {
+        List<Properties> revokes = new ArrayList<>();
+
+        synchronized (this.sendersAndReceivers) {
+            synchronized (this.pubSubAdmins) {
+                for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                    if (entry.usageCount == 0 && entry.endpoint != null) {
+                        revokes.add(entry.endpoint);
+                        if (entry.selectedPsaSvcId >= 0) {
+                            PubSubAdmin admin = this.pubSubAdmins.get(entry.selectedPsaSvcId);
+                            if (entry.isForSender()) {
+                                admin.teardownTopicSender(entry.scope, entry.topic);
+                            } else {
+                                admin.teardownTopicReceiver(entry.scope, entry.topic);
+                            }
+                        }
+
+                        entry.endpoint = null;
+                        entry.selectedPsaSvcId = -1L;
+                        entry.selectedSerializerSvcId = -1L;
+                        entry.rematch = true;
+                    }
+                }
+            }
+        }
+
+        synchronized (this.announceEndpointListeners) {
+            for (AnnounceEndpointListener listener : this.announceEndpointListeners) {
+                for (Properties endpoint : revokes) {
+                    listener.revokeEndpoint(endpoint);
+                }
+            }
+        }
+    }
+
+    private void setupTopicSendersAndReceivers() {
+        List<Properties> revokes = new ArrayList<>();
+        List<Properties> announces = new ArrayList<>();
+        synchronized (this.sendersAndReceivers) {
+            synchronized (this.pubSubAdmins) {
+                for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                    if (entry.rematch) {
+                        double bestScore = PubSubAdmin.PUBSUB_ADMIN_NO_MATCH_SCORE;
+                        long bestPsa = -1L;
+                        long serializerSvcId = -1L;
+                        Properties topicProperties = null;
+                        for (Map.Entry<Long, PubSubAdmin> psaEntry : this.pubSubAdmins.entrySet()) {
+                            if (entry.isForSender()) {
+                                PubSubAdmin.MatchResult mr = psaEntry.getValue().matchPublisher(entry.bndId, entry.publisherFilter);
+                                if (mr.score > bestScore) {
+                                    bestScore = mr.score;
+                                    serializerSvcId = mr.selectedSerializerSvcId;
+                                    topicProperties = mr.topicProperties;
+                                    bestPsa = psaEntry.getKey();
+                                }
+                            } else {
+                                PubSubAdmin.MatchResult mr = psaEntry.getValue().matchSubscriber(entry.bndId, entry.subscriberProperties);
+                                if (mr.score > bestScore) {
+                                    bestScore = mr.score;
+                                    serializerSvcId = mr.selectedSerializerSvcId;
+                                    topicProperties = mr.topicProperties;
+                                    bestPsa = psaEntry.getKey();
+                                }
+                            }
+                        }
+                        if (bestPsa >= 0 && entry.selectedPsaSvcId != bestPsa) {
+                            if (entry.endpoint != null) {
+                                revokes.add(entry.endpoint);
+                            }
+                            entry.endpoint = null;
+                            entry.selectedPsaSvcId = -1L;
+                            entry.selectedSerializerSvcId = serializerSvcId;
+                            entry.topicProperties = topicProperties;
+
+                            entry.selectedPsaSvcId = bestPsa;
+                            entry.selectedSerializerSvcId = -1L; /*TODO*/
+                            PubSubAdmin admin = this.pubSubAdmins.get(bestPsa);
+                            if (entry.isForSender()) {
+                                entry.endpoint = admin.setupTopicSender(entry.scope, entry.topic, entry.topicProperties, entry.selectedSerializerSvcId);
+                            } else {
+                                entry.endpoint = admin.setupTopicReceiver(entry.scope, entry.topic, entry.topicProperties, entry.selectedSerializerSvcId);
+                            }
+                            announces.add(entry.endpoint);
+                        }
+                    }
+                }
+            }
+        }
+
+        //revoke and announce removed topic sender/receiver endpoints and announce new ones
+        synchronized (this.announceEndpointListeners) {
+            for (AnnounceEndpointListener listener : this.announceEndpointListeners) {
+                for (Properties endpoint : revokes) {
+                    listener.revokeEndpoint(endpoint);
+                }
+                for (Properties endpoint : announces) {
+                    listener.announceEndpoint(endpoint);
+                }
+            }
+        }
+    }
+
+    private void findPsaForEndpoint() {
+        synchronized (this.discoveredEndpoints) {
+            for (DiscoveredEndpointEntry entry : this.discoveredEndpoints.values()) {
+                if (entry != null && entry.selectedPsaSvcId < 0) {
+                    long psa = -1L;
+
+                    synchronized (this.pubSubAdmins) {
+                        for (Map.Entry<Long, PubSubAdmin> psaEntry : this.pubSubAdmins.entrySet()) {
+                            if (psaEntry.getValue().matchDiscoveredEndpoint(entry.endpoint)) {
+                                psa = psaEntry.getKey();
+                                break;
+                            }
+                        }
+                        if (psa >= 0) {
+                            entry.selectedPsaSvcId = psa;
+                            this.pubSubAdmins.get(psa).addDiscoveredEndpoint(entry.endpoint);
+                        } else {
+                            this.m_LogService.log(LogService.LOG_DEBUG, "Cannot find psa for endpoint " + entry.uuid);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void printTopicSenderOrReceivers(boolean senders) {
+        System.out.println("");
+        if (senders) {
+            System.out.println("Active Topic Senders:");
+        } else {
+            System.out.println("Active Topic Receivers:");
+        }
+        synchronized (this.sendersAndReceivers) {
+            for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                boolean print = senders ? entry.isForSender() : entry.isForReceiver();
+                if (print) {
+                    String uuid = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_UUID, "!Error!");
+                    String scope = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "!Error!");
+                    String topic = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, "!Error!");
+                    String adminType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+                    String serType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+
+                    if (senders) {
+                        System.out.println("|- Topic Sender for endpoint " + uuid);
+                    } else {
+                        System.out.println("|- Topic Receiver for endpoint " + uuid);
+                    }
+                    System.out.println("   |-  scope         = " + scope);
+                    System.out.println("   |-  topic         = " + topic);
+                    System.out.println("   |-  admin type    = " + adminType);
+                    System.out.println("   |-  serializer    = " + serType);
+                    if (this.verbose) {
+                        System.out.println("   |-  psa svc id    = " + entry.selectedPsaSvcId);
+                        System.out.println("   |-  usage conut   = " + entry.usageCount);
+                    }
+                }
+            }
+        }
+    }
+
+    //GOGO shell command
+    public void pstm() {
+        System.out.println("");
+
+
+        System.out.println("Discovered Endpoints:");
+        synchronized (this.discoveredEndpoints) {
+            for (DiscoveredEndpointEntry entry : this.discoveredEndpoints.values()) {
+                String cn = entry.endpoint.getProperty("container_name", "!Error!");
+                String fwuuid = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID, "!Error!");
+                String type = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TYPE, "!Error!");
+                String scope = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "!Error!");
+                String topic = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, "!Error!");
+                String adminType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+                String serType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+                System.out.println("|- Discovered Endpoint " + entry.uuid);
+                System.out.println("   |- container name = " + cn);
+                System.out.println("   |- fw uuid        = " + fwuuid);
+                System.out.println("   |-  type          = " + type);
+                System.out.println("   |-  scope         = " + scope);
+                System.out.println("   |-  topic         = " + topic);
+                System.out.println("   |-  admin type    = " + adminType);
+                System.out.println("   |-  serializer    = " + serType);
+                if (this.verbose) {
+                    System.out.println("   |-  psa svc id    = " + entry.selectedPsaSvcId);
+                    System.out.println("   |-  usage conut   = " + entry.usageCount);
+                }
+            }
+        }
+
+        printTopicSenderOrReceivers(true);
+        printTopicSenderOrReceivers(false);
+
+        System.out.println("");
+        System.out.println("Pending Endpoints:");
+        synchronized (this.sendersAndReceivers) {
+            for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
+                if (entry.selectedPsaSvcId < 0) {
+                    String uuid = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_UUID, "!Error!");
+                    String scope = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "!Error!");
+                    String topic = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, "!Error!");
+                    String adminType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+                    String serType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+
+                    System.out.println("|- Pending endpoint " + uuid);
+                    System.out.println("   |-  scope         = " + scope);
+                    System.out.println("   |-  topic         = " + topic);
+                    System.out.println("   |-  admin type    = " + adminType);
+                    System.out.println("   |-  serializer    = " + serType);
+                }
+            }
+        }
+    }
 }

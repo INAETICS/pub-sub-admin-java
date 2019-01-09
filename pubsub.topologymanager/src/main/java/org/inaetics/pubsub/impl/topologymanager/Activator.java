@@ -18,10 +18,13 @@ import java.util.Hashtable;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
-import org.inaetics.pubsub.spi.discovery.DiscoveryManager;
+import org.inaetics.pubsub.api.pubsub.Subscriber;
+import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
+import org.inaetics.pubsub.spi.discovery.DiscoveredEndpointListener;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
+import org.osgi.framework.ServiceListener;
 import org.osgi.framework.hooks.service.ListenerHook;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.event.EventConstants;
@@ -30,37 +33,42 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-  @Override
-  public void init(BundleContext context, DependencyManager manager) {
+    @Override
+    public void init(BundleContext context, DependencyManager manager) {
 
-    String[] objectClass = new String[] {
-            ListenerHook.class.getName(), EventHandler.class.getName(), ManagedService.class.getName()
-    };
+        //TODO gogo shell
 
-    String[] topics = new String[] {org.inaetics.pubsub.spi.utils.Constants.DISCOVERY_EVENT};
+        String[] interfaces = new String[]{
+                DiscoveredEndpointListener.class.getName(), ManagedService.class.getName(), ListenerHook.class.getName()
+        };
 
-    Dictionary<String, Object> properties = new Hashtable<String, Object>();
-    properties.put(Constants.SERVICE_PID, PubSubTopologyManager.SERVICE_PID);
-    properties.put(EventConstants.EVENT_TOPIC, topics);
+        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        properties.put(Constants.SERVICE_PID, PubSubTopologyManager.SERVICE_PID);
+        properties.put("osgi.command.scope", "pubsub");
+        properties.put("osgi.command.function", new String[]{"pstm"});
 
-    manager.add(
-        manager.createComponent()
-        .setInterface(objectClass, properties)
-        .setImplementation(PubSubTopologyManager.class)
-            .setCallbacks(null, "start", "stop", "destroy")
-            .add(createServiceDependency()
-                .setService(PubSubAdmin.class)
-                .setRequired(false)
-                .setCallbacks("adminAdded", "adminRemoved"))
-            .add(createServiceDependency()
-                .setService(DiscoveryManager.class)
-                .setRequired(false)
-                .setCallbacks("discoveryManagerAdded", "discoveryManagerRemoved"))
-            .add(createServiceDependency()
-                .setService(LogService.class)
-                .setRequired(false))
-     );
+        manager.add(
+                manager.createComponent()
+                        .setInterface(interfaces, properties)
+                        .setImplementation(PubSubTopologyManager.class)
+                        .setCallbacks(null, "start", "stop", null)
+                        .add(createServiceDependency()
+                                .setService(Subscriber.class)
+                                .setRequired(false)
+                                .setCallbacks("subscriberAdded", "subscriberRemoved"))
+                        .add(createServiceDependency()
+                                .setService(PubSubAdmin.class)
+                                .setRequired(false)
+                                .setCallbacks("adminAdded", "adminRemoved"))
+                        .add(createServiceDependency()
+                                .setService(AnnounceEndpointListener.class)
+                                .setRequired(false)
+                                .setCallbacks("announceEndointListenerAdded", "announceEndointListenerRemoved"))
+                        .add(createServiceDependency()
+                                .setService(LogService.class)
+                                .setRequired(false))
+        );
 
-  }
-  
+    }
+
 }

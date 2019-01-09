@@ -22,9 +22,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -39,285 +44,240 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * A simple wrapper for the etcd HTTP API
  */
 public class EtcdWrapper {
+    private final String DEFAULT_URL = "http://localhost:2379/v2/keys";
 
-  private final String url;
-  private String charset = "UTF-8";
-  private ExecutorService executor = Executors.newCachedThreadPool();
-  private volatile boolean stopped = false;
+    private final String url;
+    private String charset = "UTF-8";
+    private ExecutorService executor = Executors.newCachedThreadPool();
+    private volatile boolean stopped = false;
 
-  public EtcdWrapper(String url) {
-    this.url = url;
-  }
+    public class ResultEntry {
+        public final String key;
+        public final String value;
 
-  public EtcdWrapper() {
-    this.url = "http://localhost:2379/v2/keys";
-  }
+        protected ResultEntry(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
 
-  /**
-   * Get a node from etcd. If wait is true it won't return until an etcd update happened. Cannot be
-   * interrupted.
-   * 
-   * @param key
-   * @param wait
-   * @param recursive
-   * @param index
-   * @return
-   * @throws MalformedURLException
-   * @throws IOException
-   */
-  public JsonNode get(String key, boolean wait, boolean recursive, long index)
-      throws MalformedURLException, IOException {
-    String getUrl = url + key;
+    public class EtcdResult {
+        public final String action; // "get", "expire", "update", "set", "delete"
+        public final List<ResultEntry> entries;
+        public final long nextWaitIndex;
 
-    if (wait || recursive) { // needs refactoring but works for now
-      getUrl += "?";
-      if (wait) {
-        getUrl += "wait=true";
+        protected EtcdResult(String action, List<ResultEntry> entries, long nextWaitIndex) {
+            this.action = action;
+            this.entries = entries;
+            this.nextWaitIndex = nextWaitIndex;
+        }
+    }
+
+    public EtcdWrapper(String url) {
+        this.url = url;
+    }
+
+    public EtcdWrapper() {
+        this.url = DEFAULT_URL;
+    }
+
+    /**
+     * Get a node from etcd. If wait is true it won't return until an etcd update happened. Cannot be
+     * interrupted.
+     *
+     * @param key
+     * @param wait
+     * @param recursive
+     * @param index
+     * @return
+     * @throws MalformedURLException
+     * @throws IOException
+     */
+    public EtcdResult get(String key, boolean wait, boolean recursive, long index)
+            throws MalformedURLException, IOException {
+        String getUrl = url + key;
+
+        if (wait || recursive) { // needs refactoring but works for now
+            getUrl += "?";
+            if (wait) {
+                getUrl += "wait=true";
+                if (index > 0) {
+                    getUrl += "&waitIndex=" + index;
+                }
+            }
+
+            if (recursive) {
+                if (wait) {
+                    getUrl += "&";
+                }
+                getUrl += "recursive=true";
+            }
+        }
+
+        URLConnection connection = new URL(getUrl).openConnection();
+        InputStream response = connection.getInputStream();
+        String strIndex = connection.getHeaderField("X-Etcd-Index");
+        long nextWaitForIndex = strIndex != null ? Long.parseLong(strIndex) + 1 : -1L;
+        JsonNode result = new ObjectMapper().readTree(response);
+        response.close();
+
+        return parseJSONResponse(nextWaitForIndex, result);
+    }
+
+    /**
+     * Put a node in etcd
+     *
+     * @param key
+     * @param value
+     * @return
+     * @throws UnsupportedEncodingException
+     * @throws IOException
+     */
+    public void put(String key, String value, int timeToLive)
+            throws UnsupportedEncodingException, IOException {
+
+        HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
+        connection.setDoOutput(true); // Triggers POST.
+        connection.setRequestMethod("PUT");
+        connection.setRequestProperty("Accept-Charset", charset);
+        connection.setRequestProperty("Content-Type",
+                "application/x-www-form-urlencoded;charset=" + charset);
+
+        String query = "";
+        if (timeToLive > 0) {
+            query = String.format("value=%s&ttl=%d", URLEncoder.encode(value, charset),
+                    timeToLive);
+        } else {
+            query = String.format("value=%s", URLEncoder.encode(value, charset));
+        }
+
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(query.getBytes(charset));
+        }
+
+        InputStream response = connection.getInputStream();
+        JsonNode result = new ObjectMapper().readTree(response);
+        response.close();
+    }
+
+    public void refreshTTL(String key, int timeToLive) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
+        connection.setDoOutput(true); // Triggers POST.
+        connection.setRequestMethod("PUT");
+        connection.setRequestProperty("Accept-Charset", charset);
+        connection.setRequestProperty("Content-Type",
+                "application/x-www-form-urlencoded;charset=" + charset);
+
+        String query =
+                String.format("refresh=%s&ttl=%s&prevExist=%s", URLEncoder.encode("true", charset),
+                        URLEncoder.encode(timeToLive + "", charset), URLEncoder.encode("true", charset));
+
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(query.getBytes(charset));
+        }
+
+        InputStream response = connection.getInputStream();
+        JsonNode result = new ObjectMapper().readTree(response);
+        response.close();
+    }
+
+    /**
+     * Delete a node in etcd
+     *
+     * @param key
+     * @return
+     * @throws MalformedURLException
+     * @throws IOException
+     */
+    public void delete(String key) throws MalformedURLException, IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
+        connection.setRequestMethod("DELETE");
+        connection.setRequestProperty("Accept-Charset", charset);
+        connection.setRequestProperty("Content-Type",
+                "application/x-www-form-urlencoded;charset=" + charset);
+
+        InputStream response = connection.getInputStream();
+        JsonNode result = new ObjectMapper().readTree(response);
+        response.close();
+    }
+
+
+    private EtcdResult parseJSONResponse(long nextWaitForIndex, JsonNode response) {
+        JsonNode action = response.get("action");
+        JsonNode rootNode = response.get("node");
+        List<ResultEntry> entries = new ArrayList<>();
+        findEntries(entries, rootNode);
+
+        if (action != null && action.isTextual()) {
+            return new EtcdResult(action.asText(), entries, nextWaitForIndex);
+        } else {
+            return null;
+        }
+    }
+
+    private void findEntries(List<ResultEntry> entries, JsonNode node) {
+        if (node != null && node.isObject()) {
+            JsonNode dir = node.get("dir");
+            boolean isDir = dir != null && dir.asBoolean(false);
+            if (isDir) {
+                JsonNode nodes = node.get("nodes");
+                if (nodes != null && nodes.isArray()) {
+                    for (int i = 0; i < nodes.size(); ++i) {
+                        JsonNode child = nodes.get(i);
+                        findEntries(entries, child);
+                    }
+                }
+            } else {
+                JsonNode key = node.get("key");
+                JsonNode value = node.get("value");
+                if (key != null && value != null && key.isTextual() && value.isTextual()) {
+                    entries.add(new ResultEntry(key.asText(), value.asText()));
+                }
+            }
+        }
+    }
+
+    /**
+     * Wait for a change on the given etcd key.
+     * TODO make interruptable
+     *
+     * @param key
+     * @param recursive
+     * @param index
+     * @throws IOException
+     * @throws MalformedURLException
+     */
+    public EtcdResult waitForChange(String key, boolean recursive, long index) throws IOException {
+        String keyUrl = url + key + "?wait=true";
         if (index > 0) {
-          getUrl += "&waitIndex=" + index;
+            keyUrl += "&waitIndex=" + index;
         }
-      }
-
-      if (recursive) {
-        if (wait) {
-          getUrl += "&";
+        if (recursive) {
+            keyUrl += "&recursive=true";
         }
-        getUrl += "recursive=true";
-      }
-    }
 
-    URLConnection connection = new URL(getUrl).openConnection();
-    InputStream response = connection.getInputStream();
-    JsonNode result = new ObjectMapper().readTree(response);
-    response.close();
-    AddEtcdIndex(result, Long.parseLong(connection.getHeaderFields().get("X-Etcd-Index").get(0)));
-    return result;
-  }
-
-  /**
-   * Put a node in etcd
-   * 
-   * @param key
-   * @param value
-   * @return
-   * @throws UnsupportedEncodingException
-   * @throws IOException
-   */
-  public JsonNode put(String key, String value, int timeToLive)
-      throws UnsupportedEncodingException, IOException {
-
-    HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
-    connection.setDoOutput(true); // Triggers POST.
-    connection.setRequestMethod("PUT");
-    connection.setRequestProperty("Accept-Charset", charset);
-    connection.setRequestProperty("Content-Type",
-        "application/x-www-form-urlencoded;charset=" + charset);
-
-    String query = "";
-    if (timeToLive > 0) {
-      query = String.format("value=%s&ttl=%d", URLEncoder.encode(value, charset),
-          timeToLive);
-    } else {
-      query = String.format("value=%s", URLEncoder.encode(value, charset));
-    }
-
-    try (OutputStream output = connection.getOutputStream()) {
-      output.write(query.getBytes(charset));
-    }
-
-    InputStream response = connection.getInputStream();
-    JsonNode result = new ObjectMapper().readTree(response);
-    response.close();
+        HttpClient client = new DefaultHttpClient();
+        HttpGet get = new HttpGet(keyUrl);
 
 
-    AddEtcdIndex(result, Long.parseLong(connection.getHeaderFields().get("X-Etcd-Index").get(0)));
-    return result;
-  }
-
-  public JsonNode refreshTTL(String key, int timeToLive) throws IOException {
-    HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
-    connection.setDoOutput(true); // Triggers POST.
-    connection.setRequestMethod("PUT");
-    connection.setRequestProperty("Accept-Charset", charset);
-    connection.setRequestProperty("Content-Type",
-        "application/x-www-form-urlencoded;charset=" + charset);
-
-    String query =
-        String.format("refresh=%s&ttl=%s&prevExist=%s", URLEncoder.encode("true", charset),
-            URLEncoder.encode(timeToLive + "", charset), URLEncoder.encode("true", charset));
-
-    try (OutputStream output = connection.getOutputStream()) {
-      output.write(query.getBytes(charset));
-    }
-
-    InputStream response = connection.getInputStream();
-    JsonNode result = new ObjectMapper().readTree(response);
-    response.close();
-
-    AddEtcdIndex(result, Long.parseLong(connection.getHeaderFields().get("X-Etcd-Index").get(0)));
-    return result;
-  }
-
-  public JsonNode createDirectory(String key) throws UnsupportedEncodingException, IOException {
-    HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
-    connection.setDoOutput(true); // Triggers POST.
-    connection.setRequestMethod("PUT");
-    connection.setRequestProperty("Accept-Charset", charset);
-    connection.setRequestProperty("Content-Type",
-        "application/x-www-form-urlencoded;charset=" + charset);
-
-    String query = String.format("dir=%s", URLEncoder.encode("true", charset));
-
-    try (OutputStream output = connection.getOutputStream()) {
-      output.write(query.getBytes(charset));
-    }
-
-    InputStream response = connection.getInputStream();
-    JsonNode result = new ObjectMapper().readTree(response);
-    response.close();
-
-    AddEtcdIndex(result, Long.parseLong(connection.getHeaderFields().get("X-Etcd-Index").get(0)));
-    return result;
-  }
-
-  /**
-   * Delete a node in etcd
-   * 
-   * @param key
-   * @return
-   * @throws MalformedURLException
-   * @throws IOException
-   */
-  public JsonNode delete(String key) throws MalformedURLException, IOException {
-    HttpURLConnection connection = (HttpURLConnection) new URL(url + key).openConnection();
-    connection.setRequestMethod("DELETE");
-    connection.setRequestProperty("Accept-Charset", charset);
-    connection.setRequestProperty("Content-Type",
-        "application/x-www-form-urlencoded;charset=" + charset);
-
-    InputStream response = connection.getInputStream();
-    JsonNode result = new ObjectMapper().readTree(response);
-    response.close();
-    AddEtcdIndex(result, Long.parseLong(connection.getHeaderFields().get("X-Etcd-Index").get(0)));
-    return result;
-  }
-
-  /**
-   * Delete an empty directory in etcd
-   * 
-   * @param key
-   * @return
-   * @throws MalformedURLException
-   * @throws IOException
-   */
-  public JsonNode deleteEmptyDirectory(String key) throws MalformedURLException, IOException {
-    HttpURLConnection connection =
-        (HttpURLConnection) new URL(url + key + "?dir=true").openConnection();
-    connection.setRequestMethod("DELETE");
-    connection.setRequestProperty("Accept-Charset", charset);
-    connection.setRequestProperty("Content-Type",
-        "application/x-www-form-urlencoded;charset=" + charset);
-
-    InputStream response = connection.getInputStream();
-    JsonNode result = new ObjectMapper().readTree(response);
-    response.close();
-    AddEtcdIndex(result, Long.parseLong(connection.getHeaderFields().get("X-Etcd-Index").get(0)));
-    return result;
-  }
-
-  /**
-   * Wait for a change on the given etcd key.
-   * 
-   * @param key
-   * @param recursive
-   * @param index
-   * @param callback
-   * @throws IOException
-   * @throws MalformedURLException
-   */
-  public void waitForChange(String key, boolean recursive, long index, EtcdCallback callback) {
-    EtcdWaiter waiter = new EtcdWaiter(key, recursive, index, callback);
-    if (!stopped) {
-      executor.submit(waiter);
-    }
-  }
-
-  public void stop() {
-    stopped = true;
-    executor.shutdownNow();
-  }
-
-  /**
-   * This class can wait for an update in etcd. It can be interrupted by calling interrupt.
-   *
-   */
-  private class EtcdWaiter extends Thread {
-    private EtcdCallback callback;
-    private HttpClient client;
-    private HttpGet get;
-    private HttpResponse response;
-    private HttpEntity entity;
-    private InputStream content;
-    private String getUrl;
-    long index;
-
-    public EtcdWaiter(String key, boolean recursive, long index, EtcdCallback callback) {
-      this.callback = callback;
-      this.index = index;
-      getUrl = url + key + "?wait=true";
-      if (index > 0) {
-        getUrl += "&waitIndex=" + index;
-      }
-      if (recursive) {
-        getUrl += "&recursive=true";
-      }
-      
-      client = new DefaultHttpClient();
-      get = new HttpGet(getUrl);
-    }
-
-    @Override
-    public void run() {
-      try {
-        response = client.execute(get);
-        entity = response.getEntity();
-        content = entity.getContent();
-        
-        long index = Long.parseLong(response.getHeaders("X-Etcd-Index")[0].getValue());
-        
-        JsonNode result = new ObjectMapper().readTree(content);
-
-        result = AddEtcdIndex(result, index);
-        callback.onResult(result);
-      } catch (Exception e) {
-        e.printStackTrace();
-        callback.onException(e);
-      } finally {
+        InputStream content = null;
+        long nextWaitIndex = -1L;
+        JsonNode result = null;
         try {
-          content.close();
-        } catch (IOException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
-          
+            HttpResponse response = client.execute(get);
+            HttpEntity entity = response.getEntity();
+            content = entity.getContent();
+
+            Header[] headers = response.getHeaders("X-Etcd-Index");
+            if (headers.length > 0) {
+                nextWaitIndex = Long.parseLong(headers[0].getValue());
+                result = new ObjectMapper().readTree(content);
+            }
+        } finally {
+            if (content != null) {
+                content.close();
+            }
         }
-      }
+        return parseJSONResponse(nextWaitIndex, result);
     }
-
-    @Override
-    public void interrupt() {
-      get.abort();
-      try {
-        content.close();
-      } catch (IOException e) {
-        e.printStackTrace();
-        callback.onException(e);
-      }
-    }
-  }
-
-  private static JsonNode AddEtcdIndex(JsonNode node, long index) {
-    ObjectNode objectNode = (ObjectNode) node;
-    objectNode.put("EtcdIndex", index);
-    return objectNode;
-  }
 }

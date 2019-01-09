@@ -22,29 +22,29 @@ import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.osgi.framework.BundleContext;
 import org.osgi.service.log.LogService;
 
-public class Activator extends DependencyActivatorBase{
+public class Activator extends DependencyActivatorBase {
 
-  @Override
-  public void init(BundleContext context, DependencyManager manager) throws Exception {
+    @Override
+    public void init(BundleContext context, DependencyManager manager) throws Exception {
 
-    String[] objectClass = new String[] {Serializer.class.getName()};
-    Dictionary<String, Object> properties = new Hashtable<String, Object>();
-    properties.put(Serializer.SERIALIZER, JacksonSerializer.SERIALIZER_JACKSON);
+        String[] objectClass = new String[]{Serializer.class.getName()};
+        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        properties.put(Serializer.SERIALIZER, JacksonSerializer.SERIALIZER_JACKSON);
 
-    manager.add(
-        manager.createComponent()
-          .setInterface(objectClass, properties)
-          .setImplementation(JacksonSerializer.class)
-          .add(createServiceDependency()
-              .setService(LogService.class)
-              .setRequired(false))
-          );
-  }
+        manager.add(
+                manager.createComponent()
+                        .setInterface(objectClass, properties)
+                        .setImplementation(JacksonSerializer.class)
+                        .add(createServiceDependency()
+                                .setService(LogService.class)
+                                .setRequired(false))
+        );
+    }
 
-  @Override
-  public void destroy(BundleContext context, DependencyManager manager) throws Exception {
-    // TODO Auto-generated method stub
-    
-  }
+    @Override
+    public void destroy(BundleContext context, DependencyManager manager) throws Exception {
+        // TODO Auto-generated method stub
+
+    }
 
 }

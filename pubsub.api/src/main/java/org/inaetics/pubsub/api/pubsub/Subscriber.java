@@ -15,14 +15,8 @@ package org.inaetics.pubsub.api.pubsub;
 
 public interface Subscriber {
 
-  public static final String PUBSUB_TOPIC = "pubsub.topic";
-  public static final String PUBSUB_SCOPE = "pubsub.scope";
-  public static final String PUBSUB_STRATEGY = "pubsub.strategy";
-  public static final String PUBSUB_CONFIG = "pubsub.config";
+    public static final String PUBSUB_TOPIC = "pubsub.topic";
+    public static final String PUBSUB_SCOPE = "pubsub.scope";
 
-  public interface MultipartCallbacks {
-    public <T> T getMultipart(Class<T> clazz);
-  }
-
-  public void receive(Object msg, MultipartCallbacks callbacks);
+    public void receive(Object msg);
 }

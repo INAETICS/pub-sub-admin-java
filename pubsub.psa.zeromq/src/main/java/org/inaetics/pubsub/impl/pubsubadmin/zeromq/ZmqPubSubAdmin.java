@@ -21,6 +21,7 @@ import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -28,8 +29,6 @@ import java.util.Set;
 import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.api.pubsub.Subscriber;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
-import org.inaetics.pubsub.spi.pubsubadmin.TopicReceiver;
-import org.inaetics.pubsub.spi.pubsubadmin.TopicSender;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
@@ -40,15 +39,19 @@ import org.osgi.service.log.LogService;
 import org.zeromq.ZAuth;
 import org.zeromq.ZContext;
 
+import static org.osgi.framework.Constants.SERVICE_ID;
+
 @Component
-public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
+public class ZmqPubSubAdmin implements PubSubAdmin {
 
   public static final String SERVICE_PID = ZmqPubSubAdmin.class.getName();
 
-  private BundleContext bundleContext = FrameworkUtil.getBundle(ZmqPubSubAdmin.class).getBundleContext();
+  private Map<Long,Serializer> serializers = new HashMap<>();
 
-  private Map<String, String> defaultPublisherProperties = new HashMap<>();
-  private Map<String, String> defaultSubscriberProperties = new HashMap<>();
+  private final int basePort = 50000; /*TODO make configureable*/
+  private final int maxPort =  55000; /*TODO make configureable*/
+
+  private BundleContext bundleContext = FrameworkUtil.getBundle(ZmqPubSubAdmin.class).getBundleContext();
 
   private static final Set<String> zmqProperties = new HashSet<>(Arrays.asList(
           ZmqConstants.ZMQ_BASE_PORT,
@@ -63,6 +66,9 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
 
   private ZContext zmqContext;
   private ZAuth zmqAuth;
+
+
+  public ZmqPubSubAdmin() { }
 
   @Init
   protected final void init() {
@@ -107,158 +113,90 @@ public class ZmqPubSubAdmin implements PubSubAdmin, ManagedService {
     zmqContext.destroy();
   }
 
-  private Map<String, String> getPublisherProperties(Bundle bundle, Filter filter) {
-    Map<String, String> filterProperties = Utils.verySimpleLDAPFilterParser(filter);
-
-    String topic = Utils.getTopicFromProperties(filterProperties);
-    Map<String, String> properties = getPublisherProperties(bundle, topic);
-    
-    properties.putAll(filterProperties);
-    return properties;
-  }
-
-  private Map<String, String> getSubscriberProperties(Bundle bundle, ServiceReference<Subscriber> reference) {
-    Map<String, String> referenceProperties = Utils.getPropertiesFromReference(reference);
-
-    String topic = Utils.getTopicFromProperties(referenceProperties);
-    Map<String, String> properties = getSubscriberProperties(bundle, topic);
-
-    properties.putAll(referenceProperties);
-    return properties;
-  }
-
-  private Map<String, String> getPublisherProperties(Bundle bundle, String topic) {
-    Map<String, String> properties = getProperties(bundle, topic, "pub");
-    properties.putAll(getProperties(bundle, topic, "zmqpub"));
-    return properties;
-  }
-
-  private Map<String, String> getSubscriberProperties(Bundle bundle, String topic) {
-    Map<String, String> properties = getProperties(bundle, topic, "sub");
-    properties.putAll(getProperties(bundle, topic, "zmqsub"));
-    return properties;
-  }
-
-  private Map<String, String> putDefaultPublisherProperties(Map<String, String> properties) {
-    for (String key : defaultPublisherProperties.keySet()) {
-      if (!properties.containsKey(key)) {
-        properties.put(key, defaultPublisherProperties.get(key));
+  @Override
+  public MatchResult matchPublisher(long publisherBndId, final String svcFilter) {
+    synchronized (this.serializers) {
+      if (serializers.size() == 0) {
+        return new MatchResult(PubSubAdmin.PUBSUB_ADMIN_NO_MATCH_SCORE, -1L, null);
+      } else {
+        //TODO forward call to Utils.matchPublisher
+        long svcId = serializers.keySet().iterator().next();
+        return new MatchResult(PubSubAdmin.PUBSUB_ADMIN_FULL_MATCH_SCORE, svcId, null);
       }
     }
-    return properties;
-  }
-
-  private Map<String, String> putDefaultSubscriberProperties(Map<String, String> properties) {
-    for (String key : defaultSubscriberProperties.keySet()) {
-      if (!properties.containsKey(key)) {
-        properties.put(key, defaultSubscriberProperties.get(key));
-      }
-    }
-    return properties;
   }
 
   @Override
-  public synchronized void updated(Dictionary<String, ?> cnf) throws ConfigurationException {
-    if (cnf != null) {
-      System.out.println("UPDATED " + this.getClass().getName());
-
-      defaultPublisherProperties = new HashMap<>();
-      defaultSubscriberProperties = new HashMap<>();
-      Enumeration<String> keys = cnf.keys();
-      while (keys.hasMoreElements()) {
-        String key = (String) keys.nextElement();
-        if (key.startsWith("pub:")) {
-          defaultPublisherProperties.put(key.substring(4), (String) cnf.get(key));
-        } else if (key.startsWith("sub:")) {
-          defaultSubscriberProperties.put(key.substring(4), (String) cnf.get(key));
-        }
+  public MatchResult matchSubscriber(long svcProviderBndId, final Properties svcProperties) {
+    synchronized (this.serializers) {
+      if (serializers.size() == 0) {
+        return new MatchResult(PubSubAdmin.PUBSUB_ADMIN_NO_MATCH_SCORE, -1L, null);
+      } else {
+        //TODO forward call to Utils.matchSubscriber
+        long svcId = serializers.keySet().iterator().next();
+        return new MatchResult(PubSubAdmin.PUBSUB_ADMIN_FULL_MATCH_SCORE, svcId, null);
       }
     }
   }
 
 
-
   @Override
-  public synchronized TopicSender createTopicSender(Bundle requester, Filter filter) {
-    Map<String, String> properties = getPublisherProperties(requester, filter);
-
-    ZmqTopicSender topicSender = new ZmqTopicSender(
-            this.zmqContext,
-            properties,
-            Utils.getTopicFromProperties(properties),
-            properties.get(Serializer.SERIALIZER)
-    );
-
-    return topicSender;
+  public boolean matchDiscoveredEndpoint(final Properties endpoint) {
+    return ZmqPubSubAdmin.PUBSUB_ADMIN_TYPE.equals(endpoint.get(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE));
   }
 
   @Override
-  public synchronized TopicReceiver createTopicReceiver(ServiceReference reference) {
-    Map<String, String> properties = getSubscriberProperties(reference.getBundle(), reference);
+  public Properties setupTopicSender(final String scope, final String topic, final Properties topicProperties, long serializerSvcId) {
+    //Properties result = new Properties();
+    //Try to create TopicSender and create &
+    //fill props with endpoint UUID, pubsub.config, endpoint type, endpoint url, etc
+    return null;
+  }
 
-    ZmqTopicReceiver topicReceiver = new ZmqTopicReceiver(
-            zmqContext,
-            properties,
-            Utils.getTopicFromProperties(properties)
-    );
 
-    return topicReceiver;
+  @Override
+  public void teardownTopicSender(final String scope, final String topic) {
+    //get TopicSender based on scope/topic and stop/destroy
+  }
+
+
+  @Override
+  public Properties setupTopicReceiver(final String scope, final String topic, final Properties topicProperties, long serializerSvcId) {
+    //Properties result = new Properties();
+    //Try to create TopicReceiver and create &
+    //fill props with endpoint UUID, pubsub.config, endpoint type, endpoint url, etc
+    return null;
+  }
+
+
+  @Override
+  public void teardownTopicReceiver(final String scope, final String topic) {
+    //get TopicReceiver based on scope/topic and stop/destroy
   }
 
   @Override
-  public synchronized double matchPublisher(Bundle requester, Filter filter) {
-    Map<String, String> properties = getPublisherProperties(requester, filter);
-    return match(properties);
+  public void addDiscoveredEndpoint(final Properties endpoint) {
+    //Find topic sender/receiver based on endpoint info connect
   }
 
   @Override
-  public synchronized double matchSubscriber(ServiceReference ref) {
-    Map<String, String> properties = getSubscriberProperties(ref.getBundle(), ref);
-    return match(properties);
+  public void removeDiscoveredEndpoint(final Properties endpoint) {
+    //Find topic sender/receiver based on endpoint info and disconnect
   }
-  
-  private static double match(Map<String, String> properties) {
-    double score = 0;
-    for (String key : properties.keySet()) {
-      if (generalProperties.contains(key)) {
-        score += 1;
-      } else if (zmqProperties.contains(key)) {
-        score += 2;
-      } else if (key.equals(PUBSUB_ADMIN_CONFIG) && properties.get(key).equals("zmq")) {
-        score += 100;
-      } else if (key.equals(PUBSUB_INTENT_LATE_JOINER_SUPPORT) && properties.get(key).equals("late-joiner-support")) {
-        score += 25;
-      } else if (key.equals(PUBSUB_INTENT_RELIABLE) && properties.get(key).equals("reliable")) {
-        score += 25;
-      }
+
+  public void addSerializer(Properties props, Serializer s) {
+    String svcIdStr = props.getProperty(SERVICE_ID);
+    long svcId = Long.parseLong(svcIdStr == null ? "-1L" : svcIdStr);
+    synchronized (this.serializers) {
+      this.serializers.put(svcId, s);
     }
-    return score;
   }
 
-  private static Map<String, String> getZmqProperties(Map<String, String> properties) {
-    Map<String, String> result = new HashMap<>();
-
-    for (String key : properties.keySet()) {
-      if (zmqProperties.contains(key)) {
-        result.put(key, properties.get(key));
-      }
+  public void removeSerializer(Properties props, Serializer s) {
+    String svcIdStr = props.getProperty(SERVICE_ID);
+    long svcId = Long.parseLong(svcIdStr == null ? "-1L" : svcIdStr);
+    synchronized (this.serializers) {
+      this.serializers.remove(svcId);
     }
-
-    return result;
   }
-
-  private Map<String, String> getProperties(Bundle bundle, String topic, String extension) {
-    URL url = bundle.getResource(Constants.PUBSUB_CONFIG_PATH + topic + "." + extension);
-    Properties properties = new Properties();
-    try {
-      if (url != null) {
-        InputStream stream = url.openStream();
-        properties.load(stream);
-      }
-    } catch (IOException e) {
-      m_LogService.log(LogService.LOG_WARNING, e.getMessage(), e);
-    }
-    return Utils.propertiesToMap(properties);
-  }
-
 }
