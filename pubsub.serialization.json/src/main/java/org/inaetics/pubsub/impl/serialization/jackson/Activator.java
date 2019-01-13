@@ -29,7 +29,7 @@ public class Activator extends DependencyActivatorBase {
 
         String[] objectClass = new String[]{Serializer.class.getName()};
         Dictionary<String, Object> properties = new Hashtable<String, Object>();
-        properties.put(Serializer.SERIALIZER, JacksonSerializer.SERIALIZER_JACKSON);
+        properties.put(Serializer.SERIALIZER_NAME_KEY, JacksonSerializer.SERIALIZER_JACKSON);
 
         manager.add(
                 manager.createComponent()

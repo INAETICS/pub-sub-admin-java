@@ -13,182 +13,209 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
-import org.inaetics.pubsub.api.pubsub.Publisher;
-import org.inaetics.pubsub.api.pubsub.Subscriber;
+import javafx.beans.property.Property;
+import org.inaetics.pubsub.api.Publisher;
+import org.inaetics.pubsub.api.Subscriber;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
+import org.inaetics.pubsub.spi.utils.Utils;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceReference;
+import org.osgi.util.tracker.ServiceTracker;
+import org.osgi.util.tracker.ServiceTrackerCustomizer;
 import org.zeromq.ZCert;
 import org.zeromq.ZContext;
+import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
+import javax.sound.midi.Receiver;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
-public class ZmqTopicReceiver extends TopicReceiver {
+public class ZmqTopicReceiver {
 
-  private final BundleContext bundleContext = FrameworkUtil.getBundle(ZmqTopicReceiver.class).getBundleContext();
+    private final BundleContext bundleContext = FrameworkUtil.getBundle(ZmqTopicReceiver.class).getBundleContext();
 
-  private final Set<Subscriber> subscribers = new HashSet<>();
-  private final Set<ZmqSubscriber> zmqSubscribers = new HashSet<>();
-  private final Map<String, Map<String, String>> zmqConnectedPublisherEndpoints = new HashMap<>();
+    private class SubscriberEntry {
+        private final long svcId;
+        private final Subscriber subscriber;
+        private final Class<?> receiveClass;
+        boolean initialized = false;
 
-  private ZContext zmqContext;
-  private Map<String, String> zmqProperties;
-  private final String topic;
-  private ZMQ.Socket socket;
-
-  private boolean open = false;
-
-  public ZmqTopicReceiver(ZContext zmqContext, Map<String, String> zmqProperties, String topic) {
-
-    this.zmqContext = zmqContext;
-    this.zmqProperties = zmqProperties;
-    this.topic = topic;
-    this.socket = zmqContext.createSocket(ZMQ.SUB);
-
-    boolean secure = Boolean.parseBoolean(bundleContext.getProperty(ZmqConstants.ZMQ_SECURE));
-    if (secure){
-      ZCert publicServerCert = new ZCert(); //TODO: Load the actual server public key
-      byte[] serverKey = publicServerCert.getPublicKey();
-
-      ZCert clientCert = new ZCert(); //TODO: Load the actual client private key
-      clientCert.apply(socket);
-
-      socket.setCurveServerKey(serverKey);
-    }
-
-  }
-
-  @Override
-  public String getTopic() {
-    return topic;
-  }
-
-  @Override
-  public Map<String, String> getEndpointProperties() {
-    Map<String, String> properties = new HashMap<>();
-    properties.put(DiscoveryManager.SERVICE_ID, Integer.toString(getId()));
-    properties.put(Subscriber.PUBSUB_TOPIC, topic);
-    properties.put(Constants.PUBSUB_TYPE, Constants.SUBSCRIBER);
-    properties.put(PUBSUB_ADMIN_TYPE, ZmqConstants.ZMQ);
-
-    return properties;
-  }
-
-  @Override
-  public void open() {
-    for (String bindUrl : zmqConnectedPublisherEndpoints.keySet()) {
-      ZmqSubscriber zmqSubscriber = new ZmqSubscriber(bindUrl, zmqProperties, topic, zmqConnectedPublisherEndpoints.get(bindUrl).get(Serializer.SERIALIZER), socket);
-
-      System.out.println("Connecting to : " + topic + " / " + bindUrl);
-      this.socket.connect(bindUrl);
-      this.socket.subscribe(topic);
-
-      zmqSubscriber.start();
-      for (Subscriber subscriber : subscribers) {
-        zmqSubscriber.connect(subscriber);
-      }
-      zmqSubscribers.add(zmqSubscriber);
-    }
-    this.open = true;
-  }
-
-  @Override
-  public void close() {
-    for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
-      zmqSubscriber.stopZmqSubscriber();
-    }
-    this.open = false;
-  }
-
-  @Override
-  public void addSubscriberEndpoint(Map<String, String> endpoint) {
-    // Not needed for a subscriber
-  }
-
-  @Override
-  public void removeSubscriberEndpoint(Map<String, String> endpoint) {
-    // Not needed for a subscriber
-  }
-
-  @Override
-  public void addPublisherEndpoint(Map<String, String> endpoint) {
-    if (endpoint.get(PUBSUB_ADMIN_TYPE).equals(ZmqConstants.ZMQ)
-            && endpoint.get(Publisher.PUBSUB_TOPIC).equals(topic)) {
-
-      String zmqTopic = endpoint.get(Subscriber.PUBSUB_TOPIC);
-      String serializer = endpoint.get(Serializer.SERIALIZER);
-      String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
-
-      if (!zmqConnectedPublisherEndpoints.containsKey(bindUrl)) {
-          zmqConnectedPublisherEndpoints.put(bindUrl, endpoint);
-
-        if (open) {
-          System.out.println("Connecting to : " + zmqTopic + " / " + bindUrl);
-          this.socket.connect(bindUrl);
-          this.socket.subscribe(this.topic);
-
-          ZmqSubscriber zmqSubscriber = new ZmqSubscriber(bindUrl, zmqProperties, zmqTopic, serializer, socket);
-
-          for (Subscriber subscriber : subscribers) {
-            zmqSubscriber.connect(subscriber);
-          }
-          zmqSubscribers.add(zmqSubscriber);
-          zmqSubscriber.start();
+        public SubscriberEntry(long svcId, Subscriber subscriber, Class<?> receiveClass) {
+            this.svcId = svcId;
+            this.subscriber = subscriber;
+            this.receiveClass = receiveClass;
         }
-      }
     }
-  }
 
-  @Override
-  public void removePublisherEndpoint(Map<String, String> endpoint) {
-    if (endpoint.get(PUBSUB_ADMIN_TYPE).equals(ZmqConstants.ZMQ)
-            && endpoint.get(Publisher.PUBSUB_TOPIC).equals(topic)) {
+    private final Map<Long, SubscriberEntry> subscribers = new Hashtable<>();
+    private final Map<Integer, Class<?>> typeIdMap = new Hashtable<>();
 
-      String bindUrl = endpoint.get(Publisher.PUBSUB_ENDPOINT_URL);
-      zmqConnectedPublisherEndpoints.remove(bindUrl);
+    private ZContext zmqContext;
+    private final ZMQ.Socket socket;
+    private final String zmqFilter;
 
-      for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
-        if (zmqSubscriber.getBindUrl().equals(bindUrl)) {
-          zmqSubscriber.stopZmqSubscriber();
+    private final Properties topicProperties;
+    private final String scope;
+    private final String topic;
+
+    private final Serializer serializer;
+    private final ServiceTracker<Subscriber, Subscriber> tracker;
+
+    private Thread receiveThread = null;
+
+    public ZmqTopicReceiver(ZContext zmqContext, Serializer serializer, Properties topicProperties, String scope, String topic) {
+
+        this.zmqContext = zmqContext;
+        this.serializer = serializer;
+        this.topicProperties = topicProperties;
+        this.scope = scope == null ? "default" : scope;
+        this.topic = topic;
+        this.socket = zmqContext.createSocket(ZMQ.SUB);
+
+        String zfilter = this.scope.length() >= 2 ? this.scope.substring(0, 2) : "EE";
+        zfilter += this.topic.length() >= 2 ? this.topic.substring(0, 2) : "EE";
+        this.zmqFilter = zfilter;
+
+        boolean secure = Boolean.parseBoolean(bundleContext.getProperty(ZmqConstants.ZMQ_SECURE));
+        if (secure) {
+            ZCert publicServerCert = new ZCert(); //TODO: Load the actual server public key
+            byte[] serverKey = publicServerCert.getPublicKey();
+
+            ZCert clientCert = new ZCert(); //TODO: Load the actual client private key
+            clientCert.apply(socket);
+
+            socket.setCurveServerKey(serverKey);
         }
-      }
 
-      System.out.println("Disconnecting from : " + topic + " / " + bindUrl);
-      this.socket.unsubscribe(this.topic);
-      this.socket.disconnect(bindUrl);
+        String filter = String.format("(%s=%s)", org.inaetics.pubsub.api.Constants.TOPIC_KEY, topic);
+        if (scope != null) {
+            filter = String.format("(&(%s=%s)(%s=%s))", org.inaetics.pubsub.api.Constants.SCOPE_KEY, scope, org.inaetics.pubsub.api.Constants.TOPIC_KEY, topic);
+        }
+        tracker = new ServiceTracker<Subscriber, Subscriber>(bundleContext, filter, new ServiceTrackerCustomizer<Subscriber, Subscriber>() {
+            @Override
+            public Subscriber addingService(ServiceReference<Subscriber> serviceReference) {
+                Subscriber sub = bundleContext.getService(serviceReference);
+                addSubscriber(serviceReference);
+                return sub;
+            }
+
+            @Override
+            public void modifiedService(ServiceReference<Subscriber> serviceReference, Subscriber subscriber) {
+                //nop
+            }
+
+            @Override
+            public void removedService(ServiceReference<Subscriber> serviceReference, Subscriber subscriber) {
+                Long svcId = (Long) serviceReference.getProperty("service.id");
+                removeSubscriber(svcId);
+            }
+        });
     }
 
-  }
-
-  @Override
-  public void connectSubscriber(ServiceReference reference) {
-    Subscriber subscriber = (Subscriber) bundleContext.getService(reference);
-    subscribers.add(subscriber);
-    for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
-      zmqSubscriber.connect(subscriber);
+    private void addSubscriber(ServiceReference<Subscriber> ref) {
+        synchronized (subscribers) {
+            Long svcId = (Long) ref.getProperty("service.id");
+            Subscriber<?> sub = bundleContext.getService(ref);
+            SubscriberEntry entry = new SubscriberEntry(svcId, sub, sub.receiveClass());
+            subscribers.put(svcId, entry);
+        }
+        synchronized (typeIdMap) {
+            Subscriber<?> sub = bundleContext.getService(ref);
+            int hash = Utils.stringHash(sub.receiveClass().getName());
+            typeIdMap.put(hash, sub.receiveClass());
+        }
     }
-    bundleContext.ungetService(reference);
-  }
 
-  @Override
-  public void disconnectSubscriber(ServiceReference reference) {
-    Subscriber subscriber = (Subscriber) bundleContext.getService(reference);
-    subscribers.remove(subscriber);
-    for (ZmqSubscriber zmqSubscriber : zmqSubscribers) {
-      zmqSubscriber.disconnect(subscriber);
+    private void removeSubscriber(long svcId) {
+        synchronized (subscribers) {
+            subscribers.remove(svcId);
+        }
+        //TODO clean up typeIdMap if class is not used anymore, i.e. loop over all classes in typeIdMap and see if there are still subscribers for
     }
-    bundleContext.ungetService(reference);
-  }
 
-  @Override
-  public boolean isActive() {
-    return !subscribers.isEmpty();
-  }
+    public void start() {
+        synchronized (receiveThread) {
+            if (receiveThread != null) {
+                socket.subscribe(this.zmqFilter);
+                receiveThread = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        receiveLoop();
+                    }
+                });
+            }
+        }
+    }
 
+    private void receiveLoop() {
+        while (!Thread.interrupted()) {
+            ZFrame filterMsg = ZFrame.recvFrame(this.socket);
+            ZFrame headerMsg = ZFrame.recvFrame(this.socket);
+            ZFrame payloadMsg = ZFrame.recvFrame(this.socket);
+
+            if (filterMsg != null && headerMsg != null && payloadMsg != null) {
+                int typeId = typeIdFromHeader(headerMsg);
+                Class<?> msgClass = null;
+                synchronized (this.typeIdMap) {
+                    msgClass = typeIdMap.get(typeId);
+                }
+                if (msgClass != null) {
+                    Object msg = serializer.deserialize(msgClass.getName(), payloadMsg.getData());
+                    synchronized (subscribers) {
+                        for (SubscriberEntry entry : subscribers.values()) {
+                            if (!entry.initialized) {
+                                entry.subscriber.init();
+                                ;
+                            }
+                            if (entry.receiveClass.equals(msgClass)) {
+                                entry.subscriber.receive(msg);
+                            }
+                        }
+                    }
+                } else {
+                    //nop. no active subscribers for class
+                }
+            } else {
+                //TODO log
+            }
+        }
+    }
+
+    private int typeIdFromHeader(ZFrame frame) {
+        byte[] bytes = frame.getData();
+        int hash = 0;
+        hash = hash | bytes[0];
+        hash = hash | bytes[1] >> 8;
+        hash = hash | bytes[1] >> 16;
+        hash = hash | bytes[1] >> 24;
+        return hash;
+    }
+
+    public void stop() {
+        synchronized (this.receiveThread) {
+            if (this.receiveThread != null) {
+                this.receiveThread.interrupt();
+                try {
+                    this.receiveThread.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public void connectTo(String url) {
+        socket.connect(url);
+    }
+
+    public void disconnectFrom(String url) {
+        socket.disconnect(url);
+    }
 }

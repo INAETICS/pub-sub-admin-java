@@ -48,7 +48,7 @@ public interface PubSubAdmin {
 
 
     /**
-     * Match a discoverd endpoint. Return true if the endpoint is a match and the required serializer service is
+     * Match a discovered endpoint. Return true if the endpoint is a match and the required serializer service is
      * available.
      */
     public boolean matchDiscoveredEndpoint(final Properties endpoint);

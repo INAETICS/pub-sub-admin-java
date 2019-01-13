@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>org.inaetics.pubsub.serialization.json</artifactId>
-    <name>INAETICS PubSub Json Serialization</name>
+    <name>INAETICS PubSub Serialization JSON</name>
 
     <build>
         <plugins>

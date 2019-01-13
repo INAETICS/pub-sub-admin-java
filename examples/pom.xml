@@ -56,7 +56,6 @@
 
     <modules>
         <module>pubsub</module>
-        <module>mp_pubsub</module>
     </modules>
 
 </project>

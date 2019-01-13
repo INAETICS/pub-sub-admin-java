@@ -13,17 +13,24 @@
  *******************************************************************************/
 package org.inaetics.pubsub.spi.utils;
 
-import java.util.Dictionary;
-import java.util.Enumeration;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
-import org.inaetics.pubsub.api.pubsub.Publisher;
+import org.inaetics.pubsub.api.Constants;
+import org.inaetics.pubsub.api.Publisher;
+import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
+import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Filter;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 
 public class Utils {
@@ -61,50 +68,6 @@ public class Utils {
             }
         }
         return result.toString();
-    }
-
-    public static String getTopicFromProperties(Map<String, String> properties) {
-        String topic = "";
-        if (properties.get(Publisher.PUBSUB_SCOPE) != null) {
-            topic += properties.get(Publisher.PUBSUB_SCOPE) + ".";
-        }
-
-        topic += properties.get(Publisher.PUBSUB_TOPIC);
-        return topic;
-    }
-
-    public static Dictionary<String, String> mapToDictionary(Map<String, String> map) {
-        Dictionary<String, String> dictionary = new Hashtable<>();
-        for (String key : map.keySet()) {
-            dictionary.put(key, map.get(key));
-        }
-        return dictionary;
-    }
-
-    public static Map<String, String> getPropertiesFromReference(ServiceReference reference) {
-        Map<String, String> properties = new HashMap<>();
-        for (String key : reference.getPropertyKeys()) {
-            Object value = reference.getProperty(key);
-            if (value instanceof String) {
-                properties.put(key, (String) value);
-            }
-        }
-        return properties;
-    }
-
-    public static Map<String, String> propertiesToMap(Properties properties) {
-        Map<String, String> result = new HashMap<>();
-
-        Enumeration<Object> keys = properties.keys();
-        while (keys.hasMoreElements()) {
-            String key = (String) keys.nextElement();
-            Object value = properties.getProperty(key);
-            if (value instanceof String) {
-                result.put(key, (String) value);
-            }
-        }
-
-        return result;
     }
 
     /**
@@ -145,6 +108,135 @@ public class Utils {
 
         return hc;
 
+    }
+
+    private static Properties getBundleProperties(final Bundle bnd, boolean publisher, String topic) {
+        Properties result = new Properties();
+        String path = String.format("META-INF/topics/%s/%s.propeties", publisher ? "pub" : "sub", topic);
+        URL propsUrl = bnd.getEntry(path);
+        if (propsUrl != null) {
+            try {
+                result.load(propsUrl.openStream());
+            } catch (IOException ie) {
+                System.err.println("Error reading properties from url " + propsUrl.getFile());
+            }
+        }
+        return result;
+    }
+
+    private static String getAttributeValueFromFilter(final String filter, List<String> attributeNames) {
+        String result = null;
+        for (String name : attributeNames) {
+            int index = filter.indexOf(name + "=");
+            if (index > 0) {
+                int start = index + name.length() + 1 /*=*/;
+                int end = filter.indexOf(")", start);
+                if (end > 0) {
+                    result = filter.substring(start, end);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private static String getScopeFromFilter(final String filter) {
+        List<String> names = Arrays.asList("scope=", (Publisher.PUBSUB_SCOPE + "="));
+        return getAttributeValueFromFilter(filter, names);
+    }
+
+    private static String getTopicFromFilter(final String filter) {
+        List<String> names = Arrays.asList("topic=", (Publisher.PUBSUB_TOPIC + "="));
+        return getAttributeValueFromFilter(filter, names);
+    }
+
+    private static PubSubAdmin.MatchResult matchFor(
+            BundleContext ctx,
+            final Properties topicProperties,
+            final String adminType,
+            double sampleScore,
+            double controlScore,
+            double noQosScore) {
+
+        double score = PubSubAdmin.PUBSUB_ADMIN_NO_MATCH_SCORE;
+        long serializerSvcId = -1L;
+
+        String requestedAdminType = null;
+        String requestedQos = null;
+        String requestedSerializer = null;
+        if (topicProperties != null) {
+            requestedAdminType = (String) topicProperties.getOrDefault(Constants.TOPIC_CONFIG_KEY, null);
+            requestedQos = (String) topicProperties.getOrDefault(Constants.TOPIC_QOS_KEY, null);
+            requestedSerializer = (String) topicProperties.getOrDefault(Constants.TOPIC_SERIALIZER_KEY, null);
+        }
+
+        if (requestedAdminType != null && requestedAdminType.equals(adminType)) {
+            score = PubSubAdmin.PUBSUB_ADMIN_FULL_MATCH_SCORE;
+        } else if (requestedQos != null && requestedQos.equals(Constants.TOPIC_CONTROL_QOS_VALUE)) {
+            score = controlScore;
+        } else if (requestedQos != null && requestedQos.equals(Constants.TOPIC_SAMPLE_QOS_VALUE)) {
+            score = sampleScore;
+        } else {
+            score = noQosScore;
+        }
+
+        if (requestedSerializer != null) {
+            String serFilter = String.format("(%s=%s)", Serializer.SERIALIZER_NAME_KEY, requestedSerializer);
+            try {
+                Collection<ServiceReference<Serializer>> refs = ctx.getServiceReferences(Serializer.class, serFilter);
+                if (refs.size() == 1) {
+                    String idStr = refs.iterator().next().getProperty("service.id").toString();
+                    long id = Long.parseLong(idStr);
+                    serializerSvcId = id;
+                }
+            } catch (InvalidSyntaxException e) {
+                e.printStackTrace();
+            }
+        } else {
+            ServiceReference<Serializer> ref = ctx.getServiceReference(Serializer.class);
+            if (ref != null) {
+                String idStr = ref.getProperty("service.id").toString();
+                long id = Long.parseLong(idStr);
+                serializerSvcId = id;
+            }
+        }
+
+        return new PubSubAdmin.MatchResult(score, serializerSvcId, topicProperties);
+    }
+
+    public static PubSubAdmin.MatchResult matchSubscriber(
+            BundleContext ctx,
+            long requestingBundleId,
+            final Properties subscriberProperties,
+            final String adminType,
+            double sampleScore,
+            double controlScore,
+            double noQosScore) {
+        String topic = subscriberProperties.getProperty(Constants.TOPIC_KEY);
+        Bundle bnd = ctx.getBundle(requestingBundleId);
+        Properties topicProperties = null;
+        if (topic != null && bnd != null) {
+            topicProperties = getBundleProperties(bnd, false, topic);
+        }
+        return matchFor(ctx, topicProperties, adminType, sampleScore, controlScore, noQosScore);
+    }
+
+    public static PubSubAdmin.MatchResult matchPublisher(
+            BundleContext ctx,
+            long requestingBundleId,
+            final String requestFilter,
+            final String adminType,
+            double sampleScore,
+            double controlScore,
+            double noQosScore) {
+
+        String topic = getTopicFromFilter(requestFilter);
+        Bundle bnd = ctx.getBundle(requestingBundleId);
+        Properties topicProperties = null;
+        if (topic != null && bnd != null) {
+            topicProperties = getBundleProperties(bnd, true, topic);
+        }
+        return matchFor(ctx, topicProperties, adminType, sampleScore, controlScore, noQosScore);
     }
 
 }

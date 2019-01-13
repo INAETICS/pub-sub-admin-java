@@ -11,12 +11,12 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.api.pubsub;
+package org.inaetics.pubsub.api;
 
 public interface Publisher {
 
-    public static final String PUBSUB_TOPIC = "pubsub.topic";
-    public static final String PUBSUB_SCOPE = "pubsub.scope";
+    public static final String PUBSUB_TOPIC = Constants.TOPIC_KEY;
+    public static final String PUBSUB_SCOPE = Constants.SCOPE_KEY;
 
     public void send(Object msg);
 }

@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>org.inaetics.pubsub.psa.zeromq</artifactId>
-    <name>INAETICS PubSub ZeroMQ PubSubAdmin</name>
+    <name>INAETICS PubSub Admin ZeroMQ</name>
 
     <build>
         <plugins>

@@ -11,12 +11,5 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package org.inaetics.pubsub.api.pubsub;
-
-public interface Subscriber {
-
-    public static final String PUBSUB_TOPIC = "pubsub.topic";
-    public static final String PUBSUB_SCOPE = "pubsub.scope";
-
-    public void receive(Object msg);
-}
+@org.osgi.annotation.versioning.Version("1.0.0")
+package org.inaetics.pubsub.api;

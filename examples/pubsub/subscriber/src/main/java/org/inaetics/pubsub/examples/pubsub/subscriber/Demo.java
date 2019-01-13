@@ -1,16 +1,13 @@
 package org.inaetics.pubsub.examples.pubsub.subscriber;
 
 import org.apache.felix.dm.annotation.api.*;
-import org.inaetics.pubsub.api.pubsub.Subscriber;
-import org.inaetics.pubsub.examples.pubsub.common.Location;
+import org.inaetics.pubsub.api.Subscriber;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;
 
-import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.List;
 
 @Component
 public class Demo {

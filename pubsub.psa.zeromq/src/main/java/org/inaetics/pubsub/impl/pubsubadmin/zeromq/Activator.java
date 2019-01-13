@@ -26,32 +26,32 @@ import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
-  @Override
-  public void init(BundleContext bundleContext, DependencyManager manager) {
+    @Override
+    public void init(BundleContext bundleContext, DependencyManager manager) {
 
-    try {
+        try {
 
-      String[] objectClass = new String[] {PubSubAdmin.class.getName()};
-      Dictionary<String, Object> properties = new Hashtable<String, Object>();
-      properties.put(Constants.SERVICE_PID, ZmqPubSubAdmin.SERVICE_PID);
+            String[] objectClass = new String[]{PubSubAdmin.class.getName()};
+            Dictionary<String, Object> properties = new Hashtable<String, Object>();
+            properties.put(Constants.SERVICE_PID, ZmqPubSubAdmin.SERVICE_PID);
 
-      manager.add(
-          manager.createComponent()
-            .setInterface(objectClass, properties)
-            .setImplementation(ZmqPubSubAdmin.class)
-            .setCallbacks("init", "start", "stop", "destroy")
-            .add(createServiceDependency()
-                .setService(LogService.class)
-                .setRequired(false))
-            .add(createServiceDependency()
-                .setService(Serializer.class)
-                .setCallbacks("addSerializer", "removeSerializer"))
-      );
+            manager.add(
+                    manager.createComponent()
+                            .setInterface(objectClass, properties)
+                            .setImplementation(ZmqPubSubAdmin.class)
+                            .setCallbacks("init", "start", "stop", "destroy")
+                            .add(createServiceDependency()
+                                    .setService(LogService.class)
+                                    .setRequired(false))
+                            .add(createServiceDependency()
+                                    .setService(Serializer.class)
+                                    .setCallbacks("addSerializer", "removeSerializer"))
+            );
 
-    } catch (Exception e) {
-      e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
-
-  }
 
 }

@@ -1,11 +1,11 @@
 package org.inaetics.pubsub.examples.pubsub.subscriber;
 
-import org.inaetics.pubsub.api.pubsub.Subscriber;
+import org.inaetics.pubsub.api.Subscriber;
 import org.inaetics.pubsub.examples.pubsub.common.Location;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class DemoSubscriber implements Subscriber {
+public class DemoSubscriber implements Subscriber<Location> {
 
     public LinkedBlockingQueue<Location> queue = new LinkedBlockingQueue<>();
     private String topic;
@@ -15,9 +15,17 @@ public class DemoSubscriber implements Subscriber {
     }
 
     @Override
-    public void receive(Object msg, MultipartCallbacks callbacks) {
-        Location location = (Location) msg;
+    public Class<Location> receiveClass() {
+        return Location.class;
+    }
 
+    @Override
+    public void init() {
+        //nop
+    }
+
+    @Override
+    public void receive(Location location) {
         int nrDataChars = 25;
         System.out.printf("Recv (%s): [%f, %f] (%s, %s) data_len = %d data = %s\n",
                 this.topic,
@@ -27,7 +35,5 @@ public class DemoSubscriber implements Subscriber {
                 location.getDescription(),
                 location.getData().length(),
                 location.getData().substring(0, nrDataChars));
-
-        queue.add(location);
     }
 }

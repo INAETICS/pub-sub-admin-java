@@ -18,17 +18,14 @@ import java.util.Hashtable;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
-import org.inaetics.pubsub.api.pubsub.Subscriber;
+import org.inaetics.pubsub.api.Subscriber;
 import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
 import org.inaetics.pubsub.spi.discovery.DiscoveredEndpointListener;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
-import org.osgi.framework.ServiceListener;
 import org.osgi.framework.hooks.service.ListenerHook;
 import org.osgi.service.cm.ManagedService;
-import org.osgi.service.event.EventConstants;
-import org.osgi.service.event.EventHandler;
 import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {

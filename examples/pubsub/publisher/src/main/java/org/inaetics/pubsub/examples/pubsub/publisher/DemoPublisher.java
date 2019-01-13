@@ -3,7 +3,7 @@ package org.inaetics.pubsub.examples.pubsub.publisher;
 import org.apache.felix.dm.annotation.api.*;
 import org.apache.felix.dm.tracker.ServiceTracker;
 import org.apache.felix.framework.util.FelixConstants;
-import org.inaetics.pubsub.api.pubsub.Publisher;
+import org.inaetics.pubsub.api.Publisher;
 import org.inaetics.pubsub.examples.pubsub.common.Location;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.Filter;
@@ -86,13 +86,6 @@ public class DemoPublisher {
             while (!this.isInterrupted()) {
 
                 if (publisher != null) {
-                    int locationMsgId = publisher.localMsgTypeIdForMsgType(Location.MSG_POI_NAME);
-
-                    if (firstTime) {
-                        System.out.println("'poi1' msgId: " + locationMsgId);
-                        System.out.print("\n");
-                        firstTime = false;
-                    }
 
                     location.setPositionLat(ThreadLocalRandom.current().nextDouble(Location.MIN_LAT, Location.MAX_LAT));
                     location.setPositionLong(ThreadLocalRandom.current().nextDouble(Location.MIN_LON, Location.MAX_LON));
@@ -107,7 +100,7 @@ public class DemoPublisher {
                     String data = String.join("", dataArr);
                     location.setData(data);
 
-                    publisher.send(location, locationMsgId);
+                    publisher.send(location);
 
                     System.out.printf("Sent %s [%f, %f] (%s, %s) data len = %d\n",
                             topic,

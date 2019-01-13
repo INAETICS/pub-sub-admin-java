@@ -14,17 +14,21 @@
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 public class ZmqConstants {
-  public static final String ZMQ_ADMIN_TYPE = "zmq";
+    public static final String ZMQ_ADMIN_TYPE = "zmq";
 
-  public static final String ZMQ_BASE_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.min";
-  public static final int ZMQ_BASE_PORT_DEFAULT = 5501;
+    public static final String ZMQ_BASE_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.min";
+    public static final int ZMQ_BASE_PORT_DEFAULT = 5501;
 
-  public static final String ZMQ_MAX_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.max";
-  public static final int ZMQ_MAX_PORT_DEFAULT = 6000;
+    public static final String ZMQ_MAX_PORT = "org.inaetics.pubsub.psa.zeromq.bindport.max";
+    public static final int ZMQ_MAX_PORT_DEFAULT = 6000;
 
-  public static final String ZMQ_NR_OF_THREADS = "org.inaetics.pubsub.psa.zeromq.threads";
-  public static final String ZMQ_SECURE = "org.inaetics.pubsub.psa.zeromq.secure";
+    public static final String ZMQ_NR_OF_THREADS = "org.inaetics.pubsub.psa.zeromq.threads";
+    public static final String ZMQ_SECURE = "org.inaetics.pubsub.psa.zeromq.secure";
 
-  public final static String ZMQ_CONNECTION_URL = "zmq.url";
+    public final static String ZMQ_CONNECTION_URL = "zmq.url";
+
+    public final static double ZMQ_DEFAULT_SAMPLE_SCORE = 70.0;
+    public final static double ZMQ_DEFAULT_CONTROL_SCORE = 80.0;
+    public final static double ZMQ_DEFAULT_NO_QOS_SCORE = 80.0;
 
 }

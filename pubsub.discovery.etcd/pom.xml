@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>org.inaetics.pubsub.discovery.etcd</artifactId>
-    <name>INAETICS PubSub etcd discovery</name>
+    <name>INAETICS PubSub Discovery ETCD</name>
 
 
     <build>

@@ -11,5 +11,14 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-@org.osgi.annotation.versioning.Version("1.0.0")
-package org.inaetics.pubsub.examples.mp_pubsub.publisher;
+package org.inaetics.pubsub.api;
+
+public interface Subscriber<T extends Object> {
+
+    public static final String PUBSUB_TOPIC = Constants.TOPIC_KEY;
+    public static final String PUBSUB_SCOPE = Constants.SCOPE_KEY;
+
+    public Class<T> receiveClass();
+    public void init();
+    public void receive(T msg);
+}
