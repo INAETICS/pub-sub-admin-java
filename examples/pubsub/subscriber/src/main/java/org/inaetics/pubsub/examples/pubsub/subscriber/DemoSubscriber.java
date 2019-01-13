@@ -7,13 +7,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class DemoSubscriber implements Subscriber<Location> {
 
-    public LinkedBlockingQueue<Location> queue = new LinkedBlockingQueue<>();
-    private String topic;
-
-    public DemoSubscriber(String topic) {
-        this.topic = topic;
-    }
-
     @Override
     public Class<Location> receiveClass() {
         return Location.class;
@@ -26,14 +19,7 @@ public class DemoSubscriber implements Subscriber<Location> {
 
     @Override
     public void receive(Location location) {
-        int nrDataChars = 25;
-        System.out.printf("Recv (%s): [%f, %f] (%s, %s) data_len = %d data = %s\n",
-                this.topic,
-                location.getPosition().getLat(),
-                location.getPosition().getLong(),
-                location.getName(),
-                location.getDescription(),
-                location.getData().length(),
-                location.getData().substring(0, nrDataChars));
+        System.out.printf("Recv (%s): [%s, %s]", location.getName(), location.getLat(), location.getLon());
+        System.out.println();
     }
 }

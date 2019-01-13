@@ -13,21 +13,14 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.serialization.jackson;
 
-import java.io.IOException;
-import java.util.Iterator;
-
-import org.apache.felix.dm.annotation.api.Component;
-import org.apache.felix.dm.annotation.api.Destroy;
-import org.apache.felix.dm.annotation.api.Start;
-import org.apache.felix.dm.annotation.api.Stop;
-import org.inaetics.pubsub.spi.serialization.Serializer;
-import org.osgi.service.log.LogService;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.inaetics.pubsub.spi.serialization.Serializer;
+import org.osgi.service.log.LogService;
 
-@Component
+import java.io.IOException;
+
 public class JacksonSerializer implements Serializer {
 
     private ObjectMapper mapper = new ObjectMapper();
@@ -70,20 +63,4 @@ public class JacksonSerializer implements Serializer {
         }
         return null;
     }
-
-    @Start
-    protected final void start() {
-        System.out.println("STARTED " + this.getClass().getName());
-    }
-
-    @Stop
-    protected final void stop() {
-        System.out.println("STOPPED " + this.getClass().getName());
-    }
-
-    @Destroy
-    protected final void destroy() {
-        System.out.println("DESTROYED " + this.getClass().getName());
-    }
-
 }

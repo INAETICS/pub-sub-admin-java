@@ -13,44 +13,30 @@
  *******************************************************************************/
 package org.inaetics.pubsub.examples.pubsub.publisher;
 
-import java.util.Dictionary;
-import java.util.Hashtable;
-
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
+import org.inaetics.pubsub.api.Publisher;
 import org.osgi.framework.BundleContext;
-import org.osgi.framework.Constants;
 import org.osgi.service.log.LogService;
 
 public class Activator extends DependencyActivatorBase {
 
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) {
-
-        try {
-
-            String[] objectClass = new String[] {Object.class.getName()};
-            Dictionary<String, Object> properties = new Hashtable<String, Object>();
-            properties.put(Constants.SERVICE_PID, DemoPublisher.SERVICE_PID);
-
-            manager.add(
-                    manager.createComponent()
-                            .setInterface(objectClass, properties)
-                            .setImplementation(DemoPublisher.class)
-                            .setCallbacks("init", "start", "stop", "destroy")
-                            .add(createServiceDependency()
-                                    .setService(LogService.class)
-                                    .setRequired(false)
-                            )
-                            .add(createConfigurationDependency()
-                                    .setRequired(false)
-                                    .setPid(DemoPublisher.SERVICE_PID)
-                            )
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        String filter = String.format("(%s=poi)", Publisher.PUBSUB_TOPIC);
+        manager.add(
+                manager.createComponent()
+                        .setImplementation(DemoPublisher.class)
+                        .setCallbacks(null, "start", "stop", null)
+                        .add(createServiceDependency()
+                                .setService(LogService.class)
+                                .setRequired(false)
+                        )
+                        .add(createServiceDependency()
+                                .setService(Publisher.class, filter)
+                                .setRequired(true)
+                        )
+        );
 
     }
-
 }

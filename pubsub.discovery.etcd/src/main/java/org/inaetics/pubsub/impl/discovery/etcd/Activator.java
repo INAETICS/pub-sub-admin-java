@@ -13,9 +13,6 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.discovery.etcd;
 
-import java.util.Dictionary;
-import java.util.Hashtable;
-
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
 import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
@@ -25,22 +22,26 @@ import org.osgi.framework.Constants;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.log.LogService;
 
+import java.util.Properties;
+
 public class Activator extends DependencyActivatorBase {
 
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) throws Exception {
 
-        String[] objectClass = new String[]{
+        String[] services = new String[]{
                 AnnounceEndpointListener.class.getName(), ManagedService.class.getName()
         };
 
-        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        Properties properties = new Properties();
         properties.put(Constants.SERVICE_PID, EtcdDiscovery.class.getName());
+
+        EtcdDiscovery disc = new EtcdDiscovery(new EtcdWrapper(), 10);
 
         manager.add(
                 manager.createComponent()
-                        .setInterface(objectClass, properties)
-                        .setImplementation(EtcdDiscovery.class)
+                        .setInterface(services, properties)
+                        .setImplementation(disc)
                         .setCallbacks(null, "start", "stop", null)
                         .add(createServiceDependency()
                                 .setService(LogService.class)

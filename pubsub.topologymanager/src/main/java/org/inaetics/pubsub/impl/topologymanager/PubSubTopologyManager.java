@@ -29,11 +29,15 @@ import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
 import org.inaetics.pubsub.spi.discovery.DiscoveredEndpointListener;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.inaetics.pubsub.spi.utils.Constants;
+import org.inaetics.pubsub.spi.utils.Utils;
 import org.osgi.framework.Bundle;
+import org.osgi.framework.ServiceReference;
 import org.osgi.framework.hooks.service.ListenerHook;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.log.LogService;
+
+import javax.xml.ws.Service;
 
 import static org.osgi.framework.Constants.SERVICE_ID;
 
@@ -51,7 +55,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         public long selectedPsaSvcId = -1L;
         public long selectedSerializerSvcId = -1L;
         public long bndId = -1L;
-        public boolean rematch = false;
+        public boolean rematch = true;
 
         //for sender entry
         public String publisherFilter = null;
@@ -95,12 +99,13 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         public void run() {
             while (!Thread.interrupted()) {
                 psaHandling();
-                synchronized (psaHandlingThread) {
-                    try {
-                        wait(PSA_UPDATE_DELAY * 1000);
-                    } catch (InterruptedException e) {
-                        return;
+                try {
+                    Thread me = Thread.currentThread();
+                    synchronized (me) {
+                        me.wait(PSA_UPDATE_DELAY * 1000);
                     }
+                } catch (InterruptedException e) {
+                    break;
                 }
             }
         }
@@ -125,9 +130,8 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         this.findPsaForEndpoint();
     }
 
-    public void adminAdded(PubSubAdmin admin, Properties props) {
-        String svcIdStr = props.getProperty(SERVICE_ID);
-        long svcId = Long.parseLong(svcIdStr == null ? "-1L" : svcIdStr);
+    public void adminAdded(ServiceReference<PubSubAdmin> adminRef, PubSubAdmin admin) {
+        Long svcId = (Long)adminRef.getProperty(SERVICE_ID);
 
         synchronized (this.pubSubAdmins) {
             pubSubAdmins.put(svcId, admin);
@@ -139,15 +143,12 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
             }
         }
 
-        synchronized (this.psaHandlingThread) {
-            psaHandlingThread.notify();
-            ;
-        }
+        synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
+
     }
 
-    public void adminRemoved(PubSubAdmin admin, Properties props) {
-        String svcIdStr = props.getProperty(SERVICE_ID);
-        long svcId = Long.parseLong(svcIdStr == null ? "-1L" : svcIdStr);
+    public void adminRemoved(ServiceReference<PubSubAdmin> adminRef, PubSubAdmin admin) {
+        Long svcId = (Long)adminRef.getProperty(SERVICE_ID);
 
         //NOTE psa shutdown should teardown topic receivers / topic senders
         //de-setup all topic receivers/senders for the removed psa.
@@ -209,10 +210,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 //note selectedPsaSvcId is stil -1 -> no psa selected yet -> psa handling thread should try to find psa
                 //for psa handling
 
-                synchronized (psaHandlingThread) {
-                    psaHandlingThread.notify();
-                    ;
-                }
+                synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
             }
         }
     }
@@ -285,17 +283,26 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
 
     }
 
-    public void subscriberAdded(Subscriber svc, Properties props, Bundle svcOwner) {
+    public void subscriberAdded(ServiceReference<Subscriber> ref, Subscriber svc) {
         //NOTE new local subscriber service register
         //1) First trying to see if a TopicReceiver already exists for this subscriber, if found
         //2) update the usage count. if not found
         //3) signal psaHandling thread to setup topic receiver
 
-        String topic = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, null);
-        String scope = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "default");
+        Bundle svcOwner = ref.getBundle();
+        String topic = (String)ref.getProperty(Subscriber.PUBSUB_TOPIC);
+        String scope = (String)ref.getProperty(Subscriber.PUBSUB_SCOPE);
         if (topic == null) {
             this.m_LogService.log(LogService.LOG_WARNING, "[PSTM] Warning subscriber service without mandatory %s property.");
             return;
+        }
+        if (scope == null) {
+            scope = "default";
+        }
+
+        Properties props = new Properties();
+        for (String key : ref.getPropertyKeys()) {
+            props.put(key, ref.getProperty(key));
         }
 
         long bndId = svcOwner.getBundleId();
@@ -313,26 +320,29 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 entry.scope = scope;
                 entry.topic = topic;
                 entry.bndId = bndId;
+                entry.rematch = true;
+                entry.subscriberProperties = props;
                 this.sendersAndReceivers.put(key, entry);
             }
         }
 
         if (newEntry) {
-            synchronized (this.psaHandlingThread) { //TODO check if synchronized is needed for notify...
-                this.psaHandlingThread.notify();
-            }
+            synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
         }
     }
 
-    public void subscriberRemoved(Subscriber svc, Properties props) {
+    public void subscriberRemoved(ServiceReference<Subscriber<?>> ref, Subscriber svc) {
         //NOTE local subscriber service unregister
         //1) Find topic receiver and decrease count
 
-        String topic = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, null);
-        String scope = props.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "default");
+        String topic = (String)ref.getProperty(Subscriber.PUBSUB_TOPIC);
+        String scope = (String)ref.getProperty(Subscriber.PUBSUB_SCOPE);
         if (topic == null) {
             this.m_LogService.log(LogService.LOG_WARNING, "[PSTM] Warning subscriber service without mandatory %s property.");
             return;
+        }
+        if (scope == null) {
+            scope = "default";
         }
 
         String key = topicReceiverKey(scope, topic);
@@ -343,13 +353,6 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 //note no notify needed, because the topicreceiver does not have to go away immediately
             }
         }
-    }
-
-    private String extractAttributeFromFilter(final String filter, final String attribute) {
-        String result = null;
-        Pattern pattern = Pattern.compile("\\(" + attribute + "=(.*)\\)");
-        Matcher m = pattern.matcher(filter);
-        return m.group(0);
     }
 
 
@@ -367,8 +370,8 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
             //2) update the usage count. if not found
             //3) signal psaHandling thread to find a psa and setup TopicSender
 
-            String scope = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE);
-            String topic = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_NAME);
+            String scope = Utils.getAttributeValueFromFilter(info.getFilter(), Publisher.PUBSUB_SCOPE);
+            String topic = Utils.getAttributeValueFromFilter(info.getFilter(), Publisher.PUBSUB_TOPIC);
             scope = scope != null ? scope : "default";
 
             if (topic == null) {
@@ -387,6 +390,8 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                     entry.key = key;
                     entry.topic = topic;
                     entry.scope = scope;
+                    entry.rematch = true;
+                    entry.publisherFilter = info.getFilter();
                     this.sendersAndReceivers.put(key, entry);
                 }
             }
@@ -394,9 +399,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
 
 
         if (newEntry) {
-            synchronized (this.psaHandlingThread) {
-                this.psaHandlingThread.notify();
-            }
+            synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
         }
     }
 
@@ -407,8 +410,8 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 continue;
             }
 
-            String scope = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE);
-            String topic = extractAttributeFromFilter(info.getFilter(), Constants.PUBSUB_ENDPOINT_TOPIC_NAME);
+            String scope = Utils.getAttributeValueFromFilter(info.getFilter(), Publisher.PUBSUB_SCOPE);
+            String topic = Utils.getAttributeValueFromFilter(info.getFilter(), Publisher.PUBSUB_TOPIC);
             scope = scope != null ? scope : "default";
             if (topic == null) {
                 m_LogService.log(LogService.LOG_WARNING, "[PSTM] Cannot find topic for removed publisher request");
@@ -508,7 +511,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                             entry.topicProperties = topicProperties;
 
                             entry.selectedPsaSvcId = bestPsa;
-                            entry.selectedSerializerSvcId = -1L; /*TODO*/
+                            entry.selectedSerializerSvcId = serializerSvcId;
                             PubSubAdmin admin = this.pubSubAdmins.get(bestPsa);
                             if (entry.isForSender()) {
                                 entry.endpoint = admin.setupTopicSender(entry.scope, entry.topic, entry.topicProperties, entry.selectedSerializerSvcId);
@@ -575,7 +578,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                     String scope = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, "!Error!");
                     String topic = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, "!Error!");
                     String adminType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
-                    String serType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
+                    String serType = entry.endpoint.getProperty(Constants.PUBSUB_ENDPOINT_SERIALIZER, "!Error!");
 
                     if (senders) {
                         System.out.println("|- Topic Sender for endpoint " + uuid);
@@ -588,7 +591,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                     System.out.println("   |-  serializer    = " + serType);
                     if (this.verbose) {
                         System.out.println("   |-  psa svc id    = " + entry.selectedPsaSvcId);
-                        System.out.println("   |-  usage conut   = " + entry.usageCount);
+                        System.out.println("   |-  usage count   = " + entry.usageCount);
                     }
                 }
             }

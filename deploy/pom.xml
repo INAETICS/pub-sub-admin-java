@@ -35,12 +35,8 @@
                     <failOnChanges>false</failOnChanges>
                     <resolve>false</resolve>
                     <bndruns>
-                        <bndrun>launch.kafka.publisher.bndrun</bndrun>
-                        <bndrun>launch.kafka.subscriber.bndrun</bndrun>
                         <bndrun>launch.zmq.publisher.bndrun</bndrun>
                         <bndrun>launch.zmq.subscriber.bndrun</bndrun>
-                        <bndrun>launch.zmq.mp_publisher.bndrun</bndrun>
-                        <bndrun>launch.zmq.mp_subscriber.bndrun</bndrun>
                     </bndruns>
                 </configuration>
                 <executions>

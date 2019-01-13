@@ -15,6 +15,7 @@ package org.inaetics.pubsub.impl.serialization.jackson;
 
 import java.util.Dictionary;
 import java.util.Hashtable;
+import java.util.Properties;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
@@ -27,13 +28,13 @@ public class Activator extends DependencyActivatorBase {
     @Override
     public void init(BundleContext context, DependencyManager manager) throws Exception {
 
-        String[] objectClass = new String[]{Serializer.class.getName()};
-        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        String[] services = new String[]{Serializer.class.getName()};
+        Properties properties = new Properties();
         properties.put(Serializer.SERIALIZER_NAME_KEY, JacksonSerializer.SERIALIZER_JACKSON);
 
         manager.add(
                 manager.createComponent()
-                        .setInterface(objectClass, properties)
+                        .setInterface(services, properties)
                         .setImplementation(JacksonSerializer.class)
                         .add(createServiceDependency()
                                 .setService(LogService.class)
@@ -43,7 +44,6 @@ public class Activator extends DependencyActivatorBase {
 
     @Override
     public void destroy(BundleContext context, DependencyManager manager) throws Exception {
-        // TODO Auto-generated method stub
 
     }
 

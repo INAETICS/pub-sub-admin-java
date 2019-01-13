@@ -13,14 +13,13 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
-import javafx.beans.property.Property;
-import org.inaetics.pubsub.api.Publisher;
 import org.inaetics.pubsub.api.Subscriber;
 import org.inaetics.pubsub.spi.serialization.Serializer;
-import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
 import org.osgi.framework.BundleContext;
+import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 import org.osgi.util.tracker.ServiceTracker;
 import org.osgi.util.tracker.ServiceTrackerCustomizer;
@@ -29,13 +28,11 @@ import org.zeromq.ZContext;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
-import javax.sound.midi.Receiver;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
+
+import static org.osgi.framework.Constants.OBJECTCLASS;
 
 public class ZmqTopicReceiver {
 
@@ -68,7 +65,12 @@ public class ZmqTopicReceiver {
     private final Serializer serializer;
     private final ServiceTracker<Subscriber, Subscriber> tracker;
 
-    private Thread receiveThread = null;
+    private final Thread receiveThread = new Thread(new Runnable() {
+        @Override
+        public void run() {
+            receiveLoop();
+        }
+    });
 
     public ZmqTopicReceiver(ZContext zmqContext, Serializer serializer, Properties topicProperties, String scope, String topic) {
 
@@ -94,11 +96,14 @@ public class ZmqTopicReceiver {
             socket.setCurveServerKey(serverKey);
         }
 
-        String filter = String.format("(%s=%s)", org.inaetics.pubsub.api.Constants.TOPIC_KEY, topic);
-        if (scope != null) {
-            filter = String.format("(&(%s=%s)(%s=%s))", org.inaetics.pubsub.api.Constants.SCOPE_KEY, scope, org.inaetics.pubsub.api.Constants.TOPIC_KEY, topic);
+        String filter = String.format("(&(%s=%s)(%s=%s))", OBJECTCLASS, Subscriber.class.getName(), org.inaetics.pubsub.api.Constants.TOPIC_KEY, topic);
+        Filter f = null;
+        try {
+            f = bundleContext.createFilter(filter);
+        } catch (InvalidSyntaxException e) {
+            e.printStackTrace();
         }
-        tracker = new ServiceTracker<Subscriber, Subscriber>(bundleContext, filter, new ServiceTrackerCustomizer<Subscriber, Subscriber>() {
+        tracker = new ServiceTracker<Subscriber, Subscriber>(bundleContext, f, new ServiceTrackerCustomizer<Subscriber, Subscriber>() {
             @Override
             public Subscriber addingService(ServiceReference<Subscriber> serviceReference) {
                 Subscriber sub = bundleContext.getService(serviceReference);
@@ -120,16 +125,26 @@ public class ZmqTopicReceiver {
     }
 
     private void addSubscriber(ServiceReference<Subscriber> ref) {
-        synchronized (subscribers) {
-            Long svcId = (Long) ref.getProperty("service.id");
-            Subscriber<?> sub = bundleContext.getService(ref);
-            SubscriberEntry entry = new SubscriberEntry(svcId, sub, sub.receiveClass());
-            subscribers.put(svcId, entry);
+        String subScope = (String)ref.getProperty(Subscriber.PUBSUB_SCOPE);
+        boolean match = subScope != null && this.scope.equals(subScope);
+        if (subScope == null && this.scope.equals("default")) {
+            match = true; //for default scope a subscriber can leave out the scope property
         }
-        synchronized (typeIdMap) {
-            Subscriber<?> sub = bundleContext.getService(ref);
-            int hash = Utils.stringHash(sub.receiveClass().getName());
-            typeIdMap.put(hash, sub.receiveClass());
+
+        if (match)
+
+        {
+            synchronized (subscribers) {
+                Long svcId = (Long) ref.getProperty("service.id");
+                Subscriber<?> sub = bundleContext.getService(ref);
+                SubscriberEntry entry = new SubscriberEntry(svcId, sub, sub.receiveClass());
+                subscribers.put(svcId, entry);
+            }
+            synchronized (typeIdMap) {
+                Subscriber<?> sub = bundleContext.getService(ref);
+                int hash = Utils.stringHash(sub.receiveClass().getName());
+                typeIdMap.put(hash, sub.receiveClass());
+            }
         }
     }
 
@@ -141,21 +156,12 @@ public class ZmqTopicReceiver {
     }
 
     public void start() {
-        synchronized (receiveThread) {
-            if (receiveThread != null) {
-                socket.subscribe(this.zmqFilter);
-                receiveThread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        receiveLoop();
-                    }
-                });
-            }
-        }
+        receiveThread.start();
     }
 
     private void receiveLoop() {
         while (!Thread.interrupted()) {
+            //TODO recvFrame does not quit on interrupt. improve.
             ZFrame filterMsg = ZFrame.recvFrame(this.socket);
             ZFrame headerMsg = ZFrame.recvFrame(this.socket);
             ZFrame payloadMsg = ZFrame.recvFrame(this.socket);
@@ -199,15 +205,11 @@ public class ZmqTopicReceiver {
     }
 
     public void stop() {
-        synchronized (this.receiveThread) {
-            if (this.receiveThread != null) {
-                this.receiveThread.interrupt();
-                try {
-                    this.receiveThread.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
+        this.receiveThread.interrupt();
+        try {
+            this.receiveThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 

@@ -13,41 +13,26 @@
  *******************************************************************************/
 package org.inaetics.pubsub.examples.pubsub.subscriber;
 
-import java.util.Dictionary;
-import java.util.Hashtable;
-
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
+import org.inaetics.pubsub.api.Subscriber;
 import org.osgi.framework.BundleContext;
-import org.osgi.framework.Constants;
-import org.osgi.service.log.LogService;
+
+import java.util.Properties;
 
 public class Activator extends DependencyActivatorBase {
 
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) {
+        String[] services = new String[] {Subscriber.class.getName()};
+        Properties props = new Properties();
+        props.put(Subscriber.PUBSUB_TOPIC, "poi");
 
-        try {
-
-            String[] objectClass = new String[] {Object.class.getName()};
-            Dictionary<String, Object> properties = new Hashtable<String, Object>();
-            properties.put(Constants.SERVICE_PID, Demo.SERVICE_PID);
-
-            manager.add(
-                    manager.createComponent()
-                            .setInterface(objectClass, properties)
-                            .setImplementation(Demo.class)
-                            .add(createServiceDependency()
-                                    .setService(LogService.class)
-                                    .setRequired(false))
-                            .add(createConfigurationDependency()
-                                    .setRequired(false)
-                                    .setPid(Demo.SERVICE_PID))
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        manager.add(
+                manager.createComponent()
+                        .setInterface(services, props)
+                        .setImplementation(DemoSubscriber.class)
+        );
     }
 
 }

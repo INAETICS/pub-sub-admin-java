@@ -13,30 +13,24 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.UUID;
-
-import org.apache.felix.dm.annotation.api.*;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Constants;
 import org.inaetics.pubsub.spi.utils.Utils;
-import org.osgi.framework.*;
+import org.osgi.framework.BundleContext;
+import org.osgi.framework.FrameworkUtil;
+import org.osgi.framework.ServiceReference;
 import org.osgi.service.log.LogService;
 import org.zeromq.ZAuth;
 import org.zeromq.ZContext;
 
-import javax.sound.midi.Receiver;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
 
 import static org.osgi.framework.Constants.SERVICE_ID;
 
-@Component
 public class ZmqPubSubAdmin implements PubSubAdmin {
 
     public static final String SERVICE_PID = ZmqPubSubAdmin.class.getName();
@@ -62,9 +56,8 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
     public ZmqPubSubAdmin() {
     }
 
-    @Init
-    protected synchronized void init() {
-        System.out.println("INITIALIZED " + this.getClass().getName());
+    public synchronized void start() {
+        System.out.println("Start " + this.getClass().getName());
 
         String strNrOfIOThreads = bundleContext.getProperty(ZmqConstants.ZMQ_NR_OF_THREADS);
         int nrOfIOThreads = 1;
@@ -84,24 +77,11 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
 
     }
 
-    @Start
-    protected synchronized void start() throws Exception {
-        System.out.println("STARTED " + this.getClass().getName());
-    }
-
-    @Stop
-    protected synchronized void stop() throws Exception {
-        System.out.println("STOPPED " + this.getClass().getName());
-    }
-
-    @Destroy
-    protected synchronized void destroy() {
-        System.out.println("DESTROYED " + this.getClass().getName());
-
+    public synchronized void stop() {
+        System.out.println("Stop " + this.getClass().getName());
         if (zmqAuth != null) {
             zmqAuth.destroy();
         }
-
         zmqContext.destroy();
     }
 
@@ -139,7 +119,10 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
     public synchronized Properties setupTopicSender(final String scope, final String topic, final Properties topicProperties, long serializerSvcId) {
         Properties endpoint = null;
         ServiceReference<Serializer> serRef = this.serializers.get(serializerSvcId);
-        Serializer ser = bundleContext.getService(serRef);
+        Serializer ser = null;
+        if (serRef != null) {
+            ser = bundleContext.getService(serRef);
+        }
         if (ser != null) {
             ZmqTopicSender sender = new ZmqTopicSender(bundleContext, zmqContext, topicProperties, scope, topic, ser);
             String key = scope + "::" + topic;
@@ -147,6 +130,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
             sender.start();
 
             UUID endpointId = UUID.randomUUID();
+            endpoint = new Properties();
             endpoint.put(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, ZmqConstants.ZMQ_ADMIN_TYPE);
             endpoint.put(Constants.PUBSUB_ENDPOINT_TYPE, Constants.PUBSUB_PUBLISHER_ENDPOINT_TYPE);
             endpoint.put(Constants.PUBSUB_ENDPOINT_UUID, endpointId.toString());
@@ -177,7 +161,10 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
     public synchronized Properties setupTopicReceiver(final String scope, final String topic, final Properties topicProperties, long serializerSvcId) {
         Properties endpoint = null;
         ServiceReference<Serializer> serRef = this.serializers.get(serializerSvcId);
-        Serializer ser = bundleContext.getService(serRef);
+        Serializer ser = null;
+        if (serRef != null) {
+            ser = bundleContext.getService(serRef);
+        }
         if (ser != null) {
             ZmqTopicReceiver receiver = new ZmqTopicReceiver(zmqContext, ser, topicProperties, scope, topic);
             String key = scope + "::" + topic;
@@ -185,6 +172,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
             receiver.start();
 
             UUID endpointId = UUID.randomUUID();
+            endpoint = new Properties();
             endpoint.put(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, ZmqConstants.ZMQ_ADMIN_TYPE);
             endpoint.put(Constants.PUBSUB_ENDPOINT_TYPE, Constants.PUBSUB_SUBSCRIBER_ENDPOINT_TYPE);
             endpoint.put(Constants.PUBSUB_ENDPOINT_UUID, endpointId.toString());

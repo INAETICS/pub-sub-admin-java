@@ -15,6 +15,7 @@ package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
 import java.util.Dictionary;
 import java.util.Hashtable;
+import java.util.Properties;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
@@ -28,30 +29,22 @@ public class Activator extends DependencyActivatorBase {
 
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) {
+        String[] services = new String[]{PubSubAdmin.class.getName()};
+        Properties properties = new Properties();
+        properties.put(Constants.SERVICE_PID, ZmqPubSubAdmin.SERVICE_PID);
 
-        try {
-
-            String[] objectClass = new String[]{PubSubAdmin.class.getName()};
-            Dictionary<String, Object> properties = new Hashtable<String, Object>();
-            properties.put(Constants.SERVICE_PID, ZmqPubSubAdmin.SERVICE_PID);
-
-            manager.add(
-                    manager.createComponent()
-                            .setInterface(objectClass, properties)
-                            .setImplementation(ZmqPubSubAdmin.class)
-                            .setCallbacks("init", "start", "stop", "destroy")
-                            .add(createServiceDependency()
-                                    .setService(LogService.class)
-                                    .setRequired(false))
-                            .add(createServiceDependency()
-                                    .setService(Serializer.class)
-                                    .setCallbacks("addSerializer", "removeSerializer"))
-            );
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        manager.add(
+                manager.createComponent()
+                        .setInterface(services, properties)
+                        .setImplementation(ZmqPubSubAdmin.class)
+                        .setCallbacks(null, "start", "stop", null)
+                        .add(createServiceDependency()
+                                .setService(LogService.class)
+                                .setRequired(false))
+                        .add(createServiceDependency()
+                                .setService(Serializer.class)
+                                .setCallbacks("addSerializer", "removeSerializer"))
+        );
 
     }
-
 }

@@ -13,16 +13,6 @@
  *******************************************************************************/
 package org.inaetics.pubsub.spi.utils;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
-
 import org.inaetics.pubsub.api.Constants;
 import org.inaetics.pubsub.api.Publisher;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
@@ -33,43 +23,19 @@ import org.osgi.framework.Filter;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
 
+import java.io.IOException;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class Utils {
-    public static Map<String, String> verySimpleLDAPFilterParser(Filter filter) {
-        String filterString = filter.toString();
-        Map<String, String> result = new HashMap<>();
-
-        for (int i = 0; i < filterString.length(); i++) {
-            if (filterString.charAt(i) == '=') {
-                result.put(getLeft(filterString, i), getRight(filterString, i));
-            }
-        }
-        return result;
-    }
-
-    private static String getLeft(String filterString, int equalsIndex) {
-        StringBuilder result = new StringBuilder();
-        for (int index = equalsIndex - 1; index > 0; index--) {
-            if (filterString.charAt(index) != '(') {
-                result.append(filterString.charAt(index));
-            } else {
-                break;
-            }
-        }
-        return result.reverse().toString();
-    }
-
-    private static String getRight(String filterString, int equalsIndex) {
-        StringBuilder result = new StringBuilder();
-        for (int index = equalsIndex + 1; index < filterString.length(); index++) {
-            if (filterString.charAt(index) != ')') {
-                result.append(filterString.charAt(index));
-            } else {
-                break;
-            }
-        }
-        return result.toString();
-    }
-
     /**
      * Return the framework UUID associated with the provided Bundle Context. If no framework UUID is
      * set it will be assigned.
@@ -124,30 +90,12 @@ public class Utils {
         return result;
     }
 
-    private static String getAttributeValueFromFilter(final String filter, List<String> attributeNames) {
-        String result = null;
-        for (String name : attributeNames) {
-            int index = filter.indexOf(name + "=");
-            if (index > 0) {
-                int start = index + name.length() + 1 /*=*/;
-                int end = filter.indexOf(")", start);
-                if (end > 0) {
-                    result = filter.substring(start, end);
-                    break;
-                }
-            }
-        }
-        return result;
-    }
-
     private static String getScopeFromFilter(final String filter) {
-        List<String> names = Arrays.asList("scope=", (Publisher.PUBSUB_SCOPE + "="));
-        return getAttributeValueFromFilter(filter, names);
+        return getAttributeValueFromFilter(filter, Publisher.PUBSUB_SCOPE);
     }
 
     private static String getTopicFromFilter(final String filter) {
-        List<String> names = Arrays.asList("topic=", (Publisher.PUBSUB_TOPIC + "="));
-        return getAttributeValueFromFilter(filter, names);
+        return getAttributeValueFromFilter(filter, Publisher.PUBSUB_TOPIC);
     }
 
     private static PubSubAdmin.MatchResult matchFor(
@@ -237,6 +185,18 @@ public class Utils {
             topicProperties = getBundleProperties(bnd, true, topic);
         }
         return matchFor(ctx, topicProperties, adminType, sampleScore, controlScore, noQosScore);
+    }
+
+
+
+    public static String getAttributeValueFromFilter(final String filter, final String attribute) {
+        String result = null;
+        Pattern pattern = Pattern.compile(".*\\(" + attribute + "=([^)]*)\\).*");
+        Matcher m = pattern.matcher(filter);
+        if (m.matches()) {
+            result = m.group(1);
+        }
+        return result;
     }
 
 }

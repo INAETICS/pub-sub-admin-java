@@ -15,6 +15,7 @@ package org.inaetics.pubsub.impl.topologymanager;
 
 import java.util.Dictionary;
 import java.util.Hashtable;
+import java.util.Properties;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
@@ -39,7 +40,7 @@ public class Activator extends DependencyActivatorBase {
                 DiscoveredEndpointListener.class.getName(), ManagedService.class.getName(), ListenerHook.class.getName()
         };
 
-        Dictionary<String, Object> properties = new Hashtable<String, Object>();
+        Properties properties = new Properties();
         properties.put(Constants.SERVICE_PID, PubSubTopologyManager.SERVICE_PID);
         properties.put("osgi.command.scope", "pubsub");
         properties.put("osgi.command.function", new String[]{"pstm"});
