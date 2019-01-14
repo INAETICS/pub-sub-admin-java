@@ -38,5 +38,6 @@ public class Activator extends DependencyActivatorBase {
                         )
         );
 
+        //TODO register poi Subscriber.
     }
 }
