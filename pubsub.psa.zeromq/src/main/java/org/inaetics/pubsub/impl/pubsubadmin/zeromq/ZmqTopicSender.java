@@ -207,8 +207,8 @@ public class ZmqTopicSender implements ServiceFactory<Publisher> {
     private ZFrame headerFrameFor(Class<?> clazz) {
         byte[] headerBytes = new byte[6]; //first 4 hashcode of the class
         ByteBuffer buff = ByteBuffer.wrap(headerBytes);
-        int hash = Utils.stringHash(clazz.getName());
-        buff.putInt(hash);
+        int typeId = Utils.typeIdForClass(clazz);
+        buff.putInt(typeId);
         buff.put(4, (byte)0); //TODO major version
         buff.put(5, (byte)0); //TODO minor version
         return new ZFrame(headerBytes);

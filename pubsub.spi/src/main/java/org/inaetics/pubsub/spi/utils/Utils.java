@@ -15,6 +15,8 @@ package org.inaetics.pubsub.spi.utils;
 
 import org.inaetics.pubsub.api.Constants;
 import org.inaetics.pubsub.api.Publisher;
+import org.inaetics.pubsub.api.ann.TypeId;
+import org.inaetics.pubsub.api.ann.TypeName;
 import org.inaetics.pubsub.spi.pubsubadmin.PubSubAdmin;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.osgi.framework.Bundle;
@@ -57,24 +59,6 @@ public class Utils {
             }
             return uuid;
         }
-    }
-
-    /**
-     * DJB2 Hash Algorithm, the same hashing algorithm is used by Apache Celix
-     *
-     * @param input the input string to hash
-     * @return the hashed string
-     */
-    public static int stringHash(String input) {
-
-        int hc = 5381;
-
-        for (int i = 0; i < input.length(); i++) {
-            hc = (hc << 5) + hc + input.charAt(i);
-        }
-
-        return hc;
-
     }
 
     private static Properties getBundleProperties(final Bundle bnd, boolean publisher, String topic) {
@@ -235,5 +219,37 @@ public class Utils {
             }
         }
         return valid;
+    }
+
+    /**
+     * DJB2 Hash Algorithm, the same hashing algorithm is used by Apache Celix
+     *
+     * @param input the input string to hash
+     * @return the hashed string
+     */
+    private static int stringHash(String input) {
+
+        int hc = 5381;
+
+        for (int i = 0; i < input.length(); i++) {
+            hc = (hc << 5) + hc + input.charAt(i);
+        }
+
+        return hc;
+
+    }
+
+    public static int typeIdForClass(Class<?> clazz) {
+        TypeId typeIdAnn = clazz.getAnnotation(TypeId.class);
+        TypeName typeNameAnn = clazz.getAnnotation(TypeName.class);
+        int typeId = 0;
+        if (typeIdAnn != null) {
+            typeId = typeIdAnn.id();
+        } else if (typeNameAnn != null) {
+            typeId = stringHash(typeNameAnn.name());
+        } else {
+            typeId = stringHash(clazz.getName());
+        }
+        return typeId;
     }
 }

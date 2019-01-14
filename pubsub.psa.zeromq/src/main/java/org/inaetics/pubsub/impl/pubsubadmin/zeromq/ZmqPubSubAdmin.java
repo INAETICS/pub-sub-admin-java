@@ -245,27 +245,24 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
     }
 
     //Gogo shell
-    public void zmq() {
-        synchronized (this.senders) {
-            System.out.printf("Topic Senders (%s):\n", this.senders.size());
-            for (ZmqTopicSender sender : senders.values()) {
-                String uuid = sender.getUUID();
-                System.out.printf("|- Topic Sender %s/%s:\n", sender.getScope(), sender.getTopic());
-                System.out.printf("   |- UUID = %s\n", uuid);
-                System.out.printf("   |- url = %s\n", sender.getConnectionUrl());
-            }
+    public synchronized void zmq() {
+        System.out.printf("Topic Senders (%s):\n", this.senders.size());
+        for (ZmqTopicSender sender : senders.values()) {
+            String uuid = sender.getUUID();
+            System.out.printf("|- Topic Sender %s/%s:\n", sender.getScope(), sender.getTopic());
+            System.out.printf("   |- UUID = %s\n", uuid);
+            System.out.printf("   |- url = %s\n", sender.getConnectionUrl());
         }
-        synchronized (this.receivers) {
-            System.out.printf("Topic Receivers (%s):\n", this.receivers.size());
-            for (ZmqTopicReceiver receiver : receivers.values()) {
-                String uuid = receiver.getUUID();
-                Collection<String> conns = receiver.getConnections();
-                System.out.printf("|- Topic Receiver %s/%s:\n", receiver.getScope(), receiver.getTopic());
-                System.out.printf("   |- UUID = %s\n", uuid);
-                System.out.printf("   |- Connections (%s):\n", conns.size());
-                for (String conn : conns) {
-                    System.out.printf("      |- %s\n", conn);
-                }
+
+        System.out.printf("Topic Receivers (%s):\n", this.receivers.size());
+        for (ZmqTopicReceiver receiver : receivers.values()) {
+            String uuid = receiver.getUUID();
+            Collection<String> conns = receiver.getConnections();
+            System.out.printf("|- Topic Receiver %s/%s:\n", receiver.getScope(), receiver.getTopic());
+            System.out.printf("   |- UUID = %s\n", uuid);
+            System.out.printf("   |- Connections (%s):\n", conns.size());
+            for (String conn : conns) {
+                System.out.printf("      |- %s\n", conn);
             }
         }
     }

@@ -1,5 +1,8 @@
 package org.inaetics.pubsub.examples.pubsub.common;
 
+import org.inaetics.pubsub.api.ann.TypeName;
+
+@TypeName(name="loc")
 public class Location {
     private String name = "";
     double lat;

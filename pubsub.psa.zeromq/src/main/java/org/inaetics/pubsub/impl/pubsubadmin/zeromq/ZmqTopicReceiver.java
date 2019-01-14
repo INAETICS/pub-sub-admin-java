@@ -151,8 +151,8 @@ public class ZmqTopicReceiver {
             }
             synchronized (typeIdMap) {
                 Subscriber<?> sub = bundleContext.getService(ref);
-                int hash = Utils.stringHash(sub.receiveClass().getName());
-                typeIdMap.put(hash, sub.receiveClass());
+                int typeId = Utils.typeIdForClass(sub.receiveClass());
+                typeIdMap.put(typeId, sub.receiveClass());
             }
         }
     }
