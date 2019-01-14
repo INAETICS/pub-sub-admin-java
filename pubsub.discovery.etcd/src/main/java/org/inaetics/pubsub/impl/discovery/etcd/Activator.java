@@ -35,6 +35,8 @@ public class Activator extends DependencyActivatorBase {
 
         Properties properties = new Properties();
         properties.put(Constants.SERVICE_PID, EtcdDiscovery.class.getName());
+        properties.put("osgi.command.scope", "pubsub");
+        properties.put("osgi.command.function", new String[]{"psd"});
 
         EtcdDiscovery disc = new EtcdDiscovery(new EtcdWrapper(), 10);
 

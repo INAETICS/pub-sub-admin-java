@@ -109,7 +109,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 }
             }
         }
-    });
+    }, "PubSub TopologyManager");
 
     public void start() {
         psaHandlingThread.start();
@@ -184,7 +184,11 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
     public void addDiscoveredEndpoint(Properties endpoint) {
 
         String uuid = endpoint.getProperty(Constants.PUBSUB_ENDPOINT_UUID);
-        assert (uuid != null);
+
+        if (uuid == null) {
+            m_LogService.log(LogService.LOG_WARNING, "Invalid endpoint. No UUID found!");
+            return;
+        }
 
         // 1) See if endpoint is already discovered, if so increase usage count.
         // 1) If not, find matching psa using the matchEndpoint
@@ -199,19 +203,23 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         }
 
 
+        boolean newEntry = false;
         synchronized (discoveredEndpoints) {
             DiscoveredEndpointEntry entry = discoveredEndpoints.get(uuid);
             if (entry != null) {
                 entry.usageCount += 1;
             } else {
+                newEntry = true;
                 entry = new DiscoveredEndpointEntry();
                 entry.usageCount = 1;
                 entry.endpoint = endpoint;
+                discoveredEndpoints.put(uuid, entry);
                 //note selectedPsaSvcId is stil -1 -> no psa selected yet -> psa handling thread should try to find psa
                 //for psa handling
-
-                synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
             }
+        }
+        if (newEntry) {
+            synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
         }
     }
 

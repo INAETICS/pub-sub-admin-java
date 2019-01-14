@@ -24,6 +24,7 @@ import org.osgi.service.log.LogService;
 import org.zeromq.ZAuth;
 import org.zeromq.ZContext;
 
+import java.util.Collection;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
@@ -112,7 +113,7 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
 
     @Override
     public boolean matchDiscoveredEndpoint(final Properties endpoint) {
-        return ZmqPubSubAdmin.PUBSUB_ADMIN_TYPE.equals(endpoint.get(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE));
+        return ZmqConstants.ZMQ_ADMIN_TYPE.equals(endpoint.get(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE));
     }
 
     @Override
@@ -129,15 +130,15 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
             senders.put(key, sender);
             sender.start();
 
-            UUID endpointId = UUID.randomUUID();
             endpoint = new Properties();
             endpoint.put(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, ZmqConstants.ZMQ_ADMIN_TYPE);
             endpoint.put(Constants.PUBSUB_ENDPOINT_TYPE, Constants.PUBSUB_PUBLISHER_ENDPOINT_TYPE);
-            endpoint.put(Constants.PUBSUB_ENDPOINT_UUID, endpointId.toString());
+            endpoint.put(Constants.PUBSUB_ENDPOINT_UUID, sender.getUUID());
             endpoint.put(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, topic);
             endpoint.put(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, scope);
             endpoint.put(Constants.PUBSUB_ENDPOINT_SERIALIZER, serRef.getProperty(Serializer.SERIALIZER_NAME_KEY));
             endpoint.put(Constants.PUBSUB_ENDPOINT_VISBILITY, Constants.PUBSUB_SUBSCRIBER_SYSTEM_VISIBLITY);
+            endpoint.put(Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID, Utils.getFrameworkUUID(bundleContext));
             endpoint.put(ZmqConstants.ZMQ_CONNECTION_URL, sender.getConnectionUrl());
         }
 
@@ -171,15 +172,15 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
             receivers.put(key, receiver);
             receiver.start();
 
-            UUID endpointId = UUID.randomUUID();
             endpoint = new Properties();
             endpoint.put(Constants.PUBSUB_ENDPOINT_ADMIN_TYPE, ZmqConstants.ZMQ_ADMIN_TYPE);
             endpoint.put(Constants.PUBSUB_ENDPOINT_TYPE, Constants.PUBSUB_SUBSCRIBER_ENDPOINT_TYPE);
-            endpoint.put(Constants.PUBSUB_ENDPOINT_UUID, endpointId.toString());
+            endpoint.put(Constants.PUBSUB_ENDPOINT_UUID, receiver.getUUID());
             endpoint.put(Constants.PUBSUB_ENDPOINT_TOPIC_NAME, topic);
             endpoint.put(Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE, scope);
             endpoint.put(Constants.PUBSUB_ENDPOINT_SERIALIZER, serRef.getProperty(Serializer.SERIALIZER_NAME_KEY));
             endpoint.put(Constants.PUBSUB_ENDPOINT_VISBILITY, Constants.PUBSUB_SUBSCRIBER_SYSTEM_VISIBLITY);
+            endpoint.put(Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID, Utils.getFrameworkUUID(bundleContext));
         }
 
         return endpoint; //NOTE can be null
@@ -206,7 +207,9 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
             if (url != null && scope != null && topic != null) {
                 String key = scope + "::" + topic;
                 ZmqTopicReceiver receiver = receivers.get(key);
-                receiver.connectTo(url);
+                if (receiver != null) {
+                    receiver.connectTo(url);
+                }
             } else {
                 log.log(LogService.LOG_WARNING, String.format("Invalid endpoint. mandatory url (%s), scope (%s) or topic (%s) is missing", url, scope, topic));
             }
@@ -222,7 +225,9 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
             if (url != null && scope != null && topic != null) {
                 String key = scope + "::" + topic;
                 ZmqTopicReceiver receiver = receivers.get(key);
-                receiver.disconnectFrom(url);
+                if (receiver != null) {
+                    receiver.disconnectFrom(url);
+                }
             } else {
                 log.log(LogService.LOG_WARNING, String.format("Invalid endpoint. mandatory url (%s), scope (%s) or topic (%s) is missing", url, scope, topic));
             }
@@ -237,5 +242,31 @@ public class ZmqPubSubAdmin implements PubSubAdmin {
     public synchronized void removeSerializer(ServiceReference<Serializer> serRef) {
         long svcId = (Long) serRef.getProperty(SERVICE_ID);
         this.serializers.remove(svcId);
+    }
+
+    //Gogo shell
+    public void zmq() {
+        synchronized (this.senders) {
+            System.out.printf("Topic Senders (%s):\n", this.senders.size());
+            for (ZmqTopicSender sender : senders.values()) {
+                String uuid = sender.getUUID();
+                System.out.printf("|- Topic Sender %s/%s:\n", sender.getScope(), sender.getTopic());
+                System.out.printf("   |- UUID = %s\n", uuid);
+                System.out.printf("   |- url = %s\n", sender.getConnectionUrl());
+            }
+        }
+        synchronized (this.receivers) {
+            System.out.printf("Topic Receivers (%s):\n", this.receivers.size());
+            for (ZmqTopicReceiver receiver : receivers.values()) {
+                String uuid = receiver.getUUID();
+                Collection<String> conns = receiver.getConnections();
+                System.out.printf("|- Topic Receiver %s/%s:\n", receiver.getScope(), receiver.getTopic());
+                System.out.printf("   |- UUID = %s\n", uuid);
+                System.out.printf("   |- Connections (%s):\n", conns.size());
+                for (String conn : conns) {
+                    System.out.printf("      |- %s\n", conn);
+                }
+            }
+        }
     }
 }

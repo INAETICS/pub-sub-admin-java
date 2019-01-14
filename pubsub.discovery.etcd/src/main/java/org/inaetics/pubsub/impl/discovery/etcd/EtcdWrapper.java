@@ -230,8 +230,9 @@ public class EtcdWrapper {
             } else {
                 JsonNode key = node.get("key");
                 JsonNode value = node.get("value");
-                if (key != null && value != null && key.isTextual() && value.isTextual()) {
-                    entries.add(new ResultEntry(key.asText(), value.asText()));
+                if (key != null && key.isTextual()) {
+                    String v = value != null && value.isTextual() ? value.asText() : null;
+                    entries.add(new ResultEntry(key.asText(), v));
                 }
             }
         }

@@ -22,6 +22,7 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Filter;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
+import org.osgi.service.log.LogService;
 
 import java.io.IOException;
 import java.net.URL;
@@ -199,4 +200,40 @@ public class Utils {
         return result;
     }
 
+
+    public static boolean validateEndpoint(LogService log, Properties endpoint) {
+        //check if the mandatory key exists
+        Object uuid = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_UUID);
+        Object type = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_TYPE);
+        Object topic = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_TOPIC_NAME);
+        Object scope = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE);
+        Object ser = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_SERIALIZER);
+        Object adminType = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_ADMIN_TYPE);
+        Object fwUUID = endpoint.get(org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID);
+        boolean valid = uuid != null && type != null && topic != null && scope != null && ser != null && adminType != null && fwUUID != null;
+        if (!valid) {
+            if (uuid == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_UUID));
+            }
+            if (type == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_TYPE));
+            }
+            if (topic == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_TOPIC_NAME));
+            }
+            if (scope == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_TOPIC_SCOPE));
+            }
+            if (ser == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_SERIALIZER));
+            }
+            if (adminType == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_ADMIN_TYPE));
+            }
+            if (fwUUID == null) {
+                log.log(LogService.LOG_WARNING, String.format("Missing %s entry", org.inaetics.pubsub.spi.utils.Constants.PUBSUB_ENDPOINT_FRAMEWORK_UUID));
+            }
+        }
+        return valid;
+    }
 }

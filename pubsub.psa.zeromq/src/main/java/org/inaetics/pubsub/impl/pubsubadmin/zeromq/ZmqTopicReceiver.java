@@ -28,9 +28,16 @@ import org.zeromq.ZContext;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.UUID;
 
 import static org.osgi.framework.Constants.OBJECTCLASS;
 
@@ -51,8 +58,10 @@ public class ZmqTopicReceiver {
         }
     }
 
+    private final UUID uuid;
     private final Map<Long, SubscriberEntry> subscribers = new Hashtable<>();
     private final Map<Integer, Class<?>> typeIdMap = new Hashtable<>();
+    private final Set<String> connections = new HashSet<>();
 
     private ZContext zmqContext;
     private final ZMQ.Socket socket;
@@ -74,6 +83,7 @@ public class ZmqTopicReceiver {
 
     public ZmqTopicReceiver(ZContext zmqContext, Serializer serializer, Properties topicProperties, String scope, String topic) {
 
+        this.uuid = UUID.randomUUID();
         this.zmqContext = zmqContext;
         this.serializer = serializer;
         this.topicProperties = topicProperties;
@@ -84,6 +94,7 @@ public class ZmqTopicReceiver {
         String zfilter = this.scope.length() >= 2 ? this.scope.substring(0, 2) : "EE";
         zfilter += this.topic.length() >= 2 ? this.topic.substring(0, 2) : "EE";
         this.zmqFilter = zfilter;
+        this.socket.subscribe(this.zmqFilter);
 
         boolean secure = Boolean.parseBoolean(bundleContext.getProperty(ZmqConstants.ZMQ_SECURE));
         if (secure) {
@@ -131,9 +142,7 @@ public class ZmqTopicReceiver {
             match = true; //for default scope a subscriber can leave out the scope property
         }
 
-        if (match)
-
-        {
+        if (match) {
             synchronized (subscribers) {
                 Long svcId = (Long) ref.getProperty("service.id");
                 Subscriber<?> sub = bundleContext.getService(ref);
@@ -156,9 +165,11 @@ public class ZmqTopicReceiver {
     }
 
     public void start() {
+        tracker.open();
         receiveThread.start();
     }
 
+    @SuppressWarnings("unchecked")
     private void receiveLoop() {
         while (!Thread.interrupted()) {
             //TODO recvFrame does not quit on interrupt. improve.
@@ -168,7 +179,7 @@ public class ZmqTopicReceiver {
 
             if (filterMsg != null && headerMsg != null && payloadMsg != null) {
                 int typeId = typeIdFromHeader(headerMsg);
-                Class<?> msgClass = null;
+                Class<?> msgClass;
                 synchronized (this.typeIdMap) {
                     msgClass = typeIdMap.get(typeId);
                 }
@@ -195,16 +206,12 @@ public class ZmqTopicReceiver {
     }
 
     private int typeIdFromHeader(ZFrame frame) {
-        byte[] bytes = frame.getData();
-        int hash = 0;
-        hash = hash | bytes[0];
-        hash = hash | bytes[1] >> 8;
-        hash = hash | bytes[1] >> 16;
-        hash = hash | bytes[1] >> 24;
+        int hash = ByteBuffer.wrap(frame.getData()).getInt();
         return hash;
     }
 
     public void stop() {
+        tracker.close();
         this.receiveThread.interrupt();
         try {
             this.receiveThread.join();
@@ -214,10 +221,36 @@ public class ZmqTopicReceiver {
     }
 
     public void connectTo(String url) {
+        synchronized (this.connections) {
+            connections.add(url);
+        }
         socket.connect(url);
     }
 
     public void disconnectFrom(String url) {
         socket.disconnect(url);
+        synchronized (this.connections) {
+            connections.remove(url);
+        }
+    }
+
+    public String getTopic() {
+        return this.topic;
+    }
+
+    public String getScope() {
+        return this.scope;
+    }
+
+    public String getUUID() {
+        return uuid.toString();
+    }
+
+    public Collection<String> getConnections() {
+        synchronized (this.connections) {
+            List<String> conns = new ArrayList<>(connections.size());
+            conns.addAll(this.connections);
+            return conns;
+        }
     }
 }

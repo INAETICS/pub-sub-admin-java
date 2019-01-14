@@ -30,8 +30,12 @@ public class Activator extends DependencyActivatorBase {
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) {
         String[] services = new String[]{PubSubAdmin.class.getName()};
+
+
         Properties properties = new Properties();
         properties.put(Constants.SERVICE_PID, ZmqPubSubAdmin.SERVICE_PID);
+        properties.put("osgi.command.scope", "pubsub");
+        properties.put("osgi.command.function", new String[]{"zmq"});
 
         manager.add(
                 manager.createComponent()

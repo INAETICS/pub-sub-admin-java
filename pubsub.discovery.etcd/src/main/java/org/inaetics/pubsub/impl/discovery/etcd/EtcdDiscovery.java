@@ -53,11 +53,9 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
     private final Thread watchThread = new Thread(new Runnable() {
         @Override
         public void run() {
-            while (!Thread.interrupted()) {
-                watch();
-            }
+            watchLoop();
         }
-    });
+    }, "PubSub Discovey ETCD");
 
     private final Map<String, AnnounceEntry> announcedEndpoints = new HashMap(); //key = etcd key
     private final Map<String, Properties> discoveredEndpoints = new HashMap<>(); //key = etcd key
@@ -70,7 +68,9 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
     private final EtcdWrapper etcd;
     private final String rootPath;
 
-    private long nextWaitForIndex = -1L; //lock with this
+    //protected by this
+    private long nextWaitForIndex = -1L;
+
 
     public EtcdDiscovery(EtcdWrapper etcd, int ttl) {
         this.ttl = ttl;
@@ -144,6 +144,12 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
 
     @Override
     public void announceEndpoint(Properties endpoint) {
+        boolean valid = org.inaetics.pubsub.spi.utils.Utils.validateEndpoint(log, endpoint);
+        if (!valid) {
+            log.log(LogService.LOG_WARNING, "[PSD] Cannot announce invalid endpoint!");
+            return;
+        }
+
         String key = this.keyForEndpoint(endpoint);
         AnnounceEntry entry = null;
         if (key == null) {
@@ -221,7 +227,13 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
             for (EtcdWrapper.ResultEntry entry : result.entries) {
                 JsonNode node = mapper.readTree(entry.value);
                 Properties endpoint = Utils.endpointFormJson(node);
-                endpoints.put(entry.key, endpoint);
+                boolean valid = org.inaetics.pubsub.spi.utils.Utils.validateEndpoint(log, endpoint);
+                if (valid) {
+                    String uuid = endpoint.getProperty(Constants.PUBSUB_ENDPOINT_UUID);
+                    endpoints.put(uuid, endpoint);
+                } else {
+                    log.log(LogService.LOG_WARNING, "[PSD] Discovered invalid endpoint");
+                }
             }
 
             synchronized (this.discoveredEndpoints) {
@@ -241,6 +253,17 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
         return nextWaitIndex;
     }
 
+    private String uuidFromEtcdKey(String key) {
+        String uuid = null;
+        int slashIndex =  key.lastIndexOf("/");
+        if (slashIndex > 0) {
+            uuid = key.substring(slashIndex + 1);
+        } else {
+            log.log(LogService.LOG_DEBUG, String.format("Cannot find uuid in key %s", key));
+        }
+        return uuid;
+    }
+
     private long waitForChange(long waitFor) {
         long nextWaitIndex = -1L;
         try {
@@ -252,9 +275,12 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
                 List<Properties> endpoints = new ArrayList<>();
                 synchronized (this.discoveredEndpoints) {
                     for (EtcdWrapper.ResultEntry entry : result.entries) {
-                        Properties ep = discoveredEndpoints.remove(entry.key);
-                        if (ep != null) {
-                            endpoints.add(ep);
+                        String uuid = uuidFromEtcdKey(entry.key);
+                        if (uuid != null) {
+                            Properties ep = discoveredEndpoints.remove(uuid);
+                            if (ep != null) {
+                                endpoints.add(ep);
+                            }
                         }
                     }
                 }
@@ -271,7 +297,12 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
                 for (EtcdWrapper.ResultEntry entry : result.entries) {
                     JsonNode node = mapper.readTree(entry.value);
                     Properties endpoint = Utils.endpointFormJson(node);
-                    endpoints.add(endpoint);
+                    boolean valid = org.inaetics.pubsub.spi.utils.Utils.validateEndpoint(log, endpoint);
+                    if (valid) {
+                        endpoints.add(endpoint);
+                    } else {
+                        log.log(LogService.LOG_WARNING, "[PSD] Discovered invalid endpoint");
+                    }
                 }
 
                 synchronized (this.discoveredEndpoints) {
@@ -309,26 +340,61 @@ public class EtcdDiscovery implements AnnounceEndpointListener, ManagedService {
         }
     }
 
-    public void watch() {
-        long waitFor = -1L;
-        synchronized (this) {
-            waitFor = this.nextWaitForIndex;
-        }
+    public void watchLoop() {
+        long waitFor;
+        while (!Thread.interrupted()) {
+            synchronized (this) {
+                waitFor = this.nextWaitForIndex;
+            }
 
-        if (waitFor < 0 /*not connected*/) {
-            waitFor = setupConnection();
-        }
-        if (waitFor >= 0 /*connected*/) {
-            waitFor = waitForChange(waitFor);
-        }
-        if (waitFor < 0 /*not connected*/) {
-            cleanupDiscoveredEndpoints();
-        }
+            if (waitFor < 0 /*not connected*/) {
+                waitFor = setupConnection();
+            }
+            if (waitFor >= 0 /*connected*/) {
+                waitFor = waitForChange(waitFor);
+            }
+            if (waitFor < 0 /*not connected*/) {
+                cleanupDiscoveredEndpoints();
+            }
 
-        synchronized (this) {
-            this.nextWaitForIndex = waitFor;
+            if (waitFor < 0) {
+                //not connected. wait a bit
+                synchronized (Thread.currentThread()) {
+                    try {
+                        Thread.currentThread().wait(1000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+
+            synchronized (this) {
+                this.nextWaitForIndex = waitFor;
+            }
         }
     }
 
-    //TODO gogo shell
+
+    //GOGO shell command
+    public void psd() {
+        synchronized (this.discoveredEndpoints) {
+            System.out.printf("Discovered Endpoint (%s):\n", discoveredEndpoints.size());
+            for (Properties endpoint : discoveredEndpoints.values()) {
+                System.out.printf("|- Endpoint %s\n", endpoint.get(Constants.PUBSUB_ENDPOINT_UUID));
+                for (Object key : endpoint.keySet()) {
+                    System.out.printf("  |- %s = %s\n", key, endpoint.get(key));
+                }
+            }
+        }
+        synchronized (this.announcedEndpoints) {
+            System.out.printf("Announced Endpoints (%s):\n", this.announcedEndpoints.size());
+            for (AnnounceEntry entry : announcedEndpoints.values()) {
+                String post = entry.isSet ? "" : "(not published)";
+                System.out.printf("|- Endpoint %s %s\n", entry.endpoint.get(Constants.PUBSUB_ENDPOINT_UUID), post);
+                for (Object key : entry.endpoint.keySet()) {
+                    System.out.printf("  |- %s = %s\n", key, entry.endpoint.get(key));
+                }
+            }
+        }
+    }
 }

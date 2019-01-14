@@ -39,12 +39,11 @@ public class Utils {
             result = new Properties();
             for (Iterator<String> it = node.getFieldNames(); it.hasNext(); ) {
                 String name = it.next();
-                JsonNode val = node.get("name");
+                JsonNode val = node.get(name);
                 if (val != null && val.isTextual()) {
-                    result.put(name, val);
+                    result.put(name, val.getTextValue());
                 }
             }
-            //TODO check mandatory fields
         }
         return result;
     }

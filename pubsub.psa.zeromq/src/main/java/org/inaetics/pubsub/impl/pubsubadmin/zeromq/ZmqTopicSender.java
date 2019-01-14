@@ -25,16 +25,19 @@ import org.zeromq.ZContext;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
+import java.nio.ByteBuffer;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.UUID;
 
 
 public class ZmqTopicSender implements ServiceFactory<Publisher> {
 
+    private final UUID uuid;
     private final BundleContext ctx;
     private final String topic;
     private final String scope;
@@ -49,7 +52,7 @@ public class ZmqTopicSender implements ServiceFactory<Publisher> {
 
 
     public ZmqTopicSender(BundleContext ctx, ZContext zmqContext, Properties topicProperties, String scope, String topic, Serializer serializer) {
-        super();
+        this.uuid = UUID.randomUUID();
         this.ctx = ctx;
         this.scope = scope == null ? "default" : scope;
         this.topic = topic;
@@ -58,26 +61,6 @@ public class ZmqTopicSender implements ServiceFactory<Publisher> {
         String filter = this.scope.length() >= 2 ? this.scope.substring(0, 2) : "EE";
         filter += this.topic.length() >= 2 ? this.topic.substring(0, 2) : "EE";
         filterFrame = new ZFrame(filter);
-
-      /* MOVE
-      tracker = new ServiceTracker<Serializer,Serializer>(ctx, serializer, new ServiceTrackerCustomizer<Serializer, Serializer>() {
-        @Override
-        public Serializer addingService(ServiceReference<Serializer> serviceReference) {
-          Serializer ser = ctx.getService(serviceReference);
-          setSerializer(tracker.getService()); //set highest ranking
-          return ser;
-        }
-
-        @Override
-        public void modifiedService(ServiceReference<Serializer> serviceReference, Serializer serializer) {
-          //nop
-        }
-
-        @Override
-        public void removedService(ServiceReference<Serializer> serviceReference, Serializer serializer) {
-          setSerializer(tracker.getService()); //set highest ranking
-        }
-      });*/
 
         this.zmqSocket = zmqContext.createSocket(ZMQ.PUB);
 
@@ -118,6 +101,10 @@ public class ZmqTopicSender implements ServiceFactory<Publisher> {
 
     public String getConnectionUrl() {
         return epUrl;
+    }
+
+    public String getUUID() {
+        return uuid.toString();
     }
 
     public void start() {
@@ -219,13 +206,11 @@ public class ZmqTopicSender implements ServiceFactory<Publisher> {
 
     private ZFrame headerFrameFor(Class<?> clazz) {
         byte[] headerBytes = new byte[6]; //first 4 hashcode of the class
+        ByteBuffer buff = ByteBuffer.wrap(headerBytes);
         int hash = Utils.stringHash(clazz.getName());
-        headerBytes[0] = (byte) (hash & 0xFF);
-        headerBytes[1] = (byte) ((hash >> 8) & 0xFF);
-        headerBytes[2] = (byte) ((hash >> 16) & 0xFF);
-        headerBytes[3] = (byte) ((hash >> 24) & 0xFF);
-        headerBytes[4] = 0; /*TODO major version*/
-        headerBytes[4] = 0; /*TODO minor version*/
+        buff.putInt(hash);
+        buff.put(4, (byte)0); //TODO major version
+        buff.put(5, (byte)0); //TODO minor version
         return new ZFrame(headerBytes);
     }
 }
