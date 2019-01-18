@@ -94,11 +94,6 @@
         </dependency>
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.psa.kafka</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.psa.zeromq</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -119,21 +114,6 @@
             <version>${project.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.examples.mp_pubsub.common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.examples.mp_pubsub.publisher</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.examples.mp_pubsub.subscriber</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
 </project>
