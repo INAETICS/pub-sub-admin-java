@@ -227,7 +227,7 @@ public class Utils {
      * @param input the input string to hash
      * @return the hashed string
      */
-    private static int stringHash(String input) {
+    public static int stringHash(String input) {
 
         int hc = 5381;
 

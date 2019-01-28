@@ -48,9 +48,9 @@ public class DemoPublisher {
     private void sendLocationUpdate() {
         loc.setLat(loc.getLat() + 5.0);
         loc.setLon(loc.getLon() + 3.0);
-        System.out.printf("Sending loc [%s,%s]\n", loc.getLat(), loc.getLon());
+        //System.out.printf("Sending loc [%s,%s]\n", loc.getLat(), loc.getLon());
         System.out.printf("Sending poi [%s, %s,%s]\n", poi.getName(), poi.getLocation().getLat(), poi.getLocation().getLon());
-        publisher.send(loc);
+        //publisher.send(loc);
         publisher.send(poi);
     }
 

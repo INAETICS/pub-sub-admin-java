@@ -26,7 +26,7 @@ public class Activator extends DependencyActivatorBase {
     public void init(BundleContext bundleContext, DependencyManager manager) {
         String[] services = new String[] {Subscriber.class.getName()};
         Properties props = new Properties();
-        props.put(Subscriber.PUBSUB_TOPIC, "poi");
+        props.put(Subscriber.PUBSUB_TOPIC, "poi1");
 
         manager.add(
                 manager.createComponent()

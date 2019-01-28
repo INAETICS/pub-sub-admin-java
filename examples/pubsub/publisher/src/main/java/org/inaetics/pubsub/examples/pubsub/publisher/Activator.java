@@ -23,7 +23,7 @@ public class Activator extends DependencyActivatorBase {
 
     @Override
     public void init(BundleContext bundleContext, DependencyManager manager) {
-        String filter = String.format("(%s=poi)", Publisher.PUBSUB_TOPIC);
+        String filter = String.format("(%s=poi1)", Publisher.PUBSUB_TOPIC);
         manager.add(
                 manager.createComponent()
                         .setImplementation(DemoPublisher.class)

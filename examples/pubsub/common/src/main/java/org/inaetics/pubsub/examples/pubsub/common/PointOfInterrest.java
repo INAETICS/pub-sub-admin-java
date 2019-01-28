@@ -15,7 +15,7 @@ package org.inaetics.pubsub.examples.pubsub.common;
 
 import org.inaetics.pubsub.api.ann.TypeName;
 
-@TypeName(name="poi")
+@TypeName(name="poi1")
 public class PointOfInterrest {
     private Location location;
     private String name;
