@@ -13,6 +13,7 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.pubsubadmin.zeromq;
 
+import org.inaetics.pubsub.api.MultiMessageSubscriber;
 import org.inaetics.pubsub.api.Subscriber;
 import org.inaetics.pubsub.spi.serialization.Serializer;
 import org.inaetics.pubsub.spi.utils.Utils;
@@ -29,15 +30,7 @@ import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 import static org.osgi.framework.Constants.OBJECTCLASS;
 
@@ -48,13 +41,21 @@ public class ZmqTopicReceiver {
     private class SubscriberEntry {
         private final long svcId;
         private final Subscriber subscriber;
-        private final Class<?> receiveClass;
+        private final MultiMessageSubscriber multiMessageSubscriber;
+        private final Collection<Class<?>> receiveClasses;
         boolean initialized = false;
 
         public SubscriberEntry(long svcId, Subscriber subscriber, Class<?> receiveClass) {
             this.svcId = svcId;
             this.subscriber = subscriber;
-            this.receiveClass = receiveClass;
+            this.multiMessageSubscriber = null;
+            this.receiveClasses = Collections.unmodifiableCollection(Arrays.asList(receiveClass));
+        }
+        public SubscriberEntry(long svcId, MultiMessageSubscriber subscriber, Collection<Class<?>> receiveClasses) {
+            this.svcId = svcId;
+            this.subscriber = null;
+            this.multiMessageSubscriber = subscriber;
+            this.receiveClasses = receiveClasses == null ? new ArrayList<>() : receiveClasses;
         }
     }
 
@@ -72,7 +73,8 @@ public class ZmqTopicReceiver {
     private final String topic;
 
     private final Serializer serializer;
-    private final ServiceTracker<Subscriber, Subscriber> tracker;
+    private final ServiceTracker<Subscriber, Subscriber> tracker1;
+    private final ServiceTracker<MultiMessageSubscriber, MultiMessageSubscriber> tracker2;
 
     private final Thread receiveThread = new Thread(new Runnable() {
         @Override
@@ -114,7 +116,7 @@ public class ZmqTopicReceiver {
         } catch (InvalidSyntaxException e) {
             e.printStackTrace();
         }
-        tracker = new ServiceTracker<Subscriber, Subscriber>(bundleContext, f, new ServiceTrackerCustomizer<Subscriber, Subscriber>() {
+        tracker1 = new ServiceTracker<Subscriber, Subscriber>(bundleContext, f, new ServiceTrackerCustomizer<Subscriber, Subscriber>() {
             @Override
             public Subscriber addingService(ServiceReference<Subscriber> serviceReference) {
                 Subscriber sub = bundleContext.getService(serviceReference);
@@ -133,15 +135,56 @@ public class ZmqTopicReceiver {
                 removeSubscriber(svcId);
             }
         });
+
+        filter = String.format("(&(%s=%s)(%s=%s))", OBJECTCLASS, MultiMessageSubscriber.class.getName(), org.inaetics.pubsub.api.Constants.TOPIC_KEY, topic);
+        f = null;
+        try {
+            f = bundleContext.createFilter(filter);
+        } catch (InvalidSyntaxException e) {
+            e.printStackTrace();
+        }
+        tracker2 = new ServiceTracker<MultiMessageSubscriber, MultiMessageSubscriber>(bundleContext, f, new ServiceTrackerCustomizer<MultiMessageSubscriber, MultiMessageSubscriber>() {
+            @Override
+            public MultiMessageSubscriber addingService(ServiceReference<MultiMessageSubscriber> serviceReference) {
+                MultiMessageSubscriber sub = bundleContext.getService(serviceReference);
+                addMultiMessageSubscriber(serviceReference);
+                return sub;
+            }
+
+            @Override
+            public void modifiedService(ServiceReference<MultiMessageSubscriber> serviceReference, MultiMessageSubscriber subscriber) {
+                //nop
+            }
+
+            @Override
+            public void removedService(ServiceReference<MultiMessageSubscriber> serviceReference, MultiMessageSubscriber subscriber) {
+                Long svcId = (Long) serviceReference.getProperty("service.id");
+                removeSubscriber(svcId);
+            }
+        });
+    }
+
+    private void addMultiMessageSubscriber(ServiceReference<MultiMessageSubscriber> ref) {
+        boolean match = isMatch(ref);
+        if (match) {
+            synchronized (subscribers) {
+                Long svcId = (Long) ref.getProperty("service.id");
+                MultiMessageSubscriber sub = bundleContext.getService(ref);
+                SubscriberEntry entry = new SubscriberEntry(svcId, sub, sub.receiveClasses());
+                subscribers.put(svcId, entry);
+            }
+            synchronized (typeIdMap) {
+                MultiMessageSubscriber sub = bundleContext.getService(ref);
+                for (Class<?> clazz : sub.receiveClasses()) {
+                    int typeId = Utils.typeIdForClass(clazz);
+                    typeIdMap.put(typeId, clazz);
+                }
+            }
+        }
     }
 
     private void addSubscriber(ServiceReference<Subscriber> ref) {
-        String subScope = (String)ref.getProperty(Subscriber.PUBSUB_SCOPE);
-        boolean match = subScope != null && this.scope.equals(subScope);
-        if (subScope == null && this.scope.equals("default")) {
-            match = true; //for default scope a subscriber can leave out the scope property
-        }
-
+        boolean match = isMatch(ref);
         if (match) {
             synchronized (subscribers) {
                 Long svcId = (Long) ref.getProperty("service.id");
@@ -157,6 +200,15 @@ public class ZmqTopicReceiver {
         }
     }
 
+    boolean isMatch(ServiceReference<?> ref) {
+        String subScope = (String)ref.getProperty(Subscriber.PUBSUB_SCOPE);
+        boolean match = this.scope.equals(subScope);
+        if (subScope == null && this.scope.equals("default")) {
+            match = true; //for default scope a subscriber can leave out the scope property
+        }
+        return match;
+    }
+
     private void removeSubscriber(long svcId) {
         synchronized (subscribers) {
             subscribers.remove(svcId);
@@ -165,7 +217,8 @@ public class ZmqTopicReceiver {
     }
 
     public void start() {
-        tracker.open();
+        tracker1.open();
+        tracker2.open();
         receiveThread.start();
     }
 
@@ -188,11 +241,23 @@ public class ZmqTopicReceiver {
                     synchronized (subscribers) {
                         for (SubscriberEntry entry : subscribers.values()) {
                             if (!entry.initialized) {
-                                entry.subscriber.init();
-                                ;
+                                if (entry.subscriber != null) {
+                                    entry.subscriber.init();
+                                }
+                                if (entry.multiMessageSubscriber != null) {
+                                    entry.multiMessageSubscriber.init();
+                                }
+                                entry.initialized = true;
                             }
-                            if (entry.receiveClass.equals(msgClass)) {
-                                entry.subscriber.receive(msg);
+                            for (Class<?> clazz : entry.receiveClasses) {
+                                if (msgClass.equals(clazz)) {
+                                    if (entry.subscriber != null) {
+                                        entry.subscriber.receive(msg);
+                                    }
+                                    if (entry.multiMessageSubscriber != null) {
+                                        entry.multiMessageSubscriber.receive(msg);
+                                    }
+                                }
                             }
                         }
                     }
@@ -211,7 +276,8 @@ public class ZmqTopicReceiver {
     }
 
     public void stop() {
-        tracker.close();
+        tracker1.close();
+        tracker2.close();
         this.receiveThread.interrupt();
         try {
             this.receiveThread.join();

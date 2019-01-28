@@ -13,12 +13,14 @@
  *******************************************************************************/
 package org.inaetics.pubsub.api;
 
-public interface Subscriber<T extends Object> {
+import java.util.Collection;
+
+public interface MultiMessageSubscriber {
 
     String PUBSUB_TOPIC = Constants.TOPIC_KEY;
     String PUBSUB_SCOPE = Constants.SCOPE_KEY;
 
-    Class<T> receiveClass();
+    Collection<Class<?>> receiveClasses();
     void init();
-    void receive(T msg);
+    void receive(Object msg);
 }

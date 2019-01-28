@@ -14,6 +14,8 @@ public class UtilsTest {
         int hash = Utils.stringHash("abc");
         Assert.assertEquals(hash, 193485963);
 
+        hash = Utils.stringHash("poi1");
+        Assert.assertEquals(hash, 2090622942);
     }
 
 

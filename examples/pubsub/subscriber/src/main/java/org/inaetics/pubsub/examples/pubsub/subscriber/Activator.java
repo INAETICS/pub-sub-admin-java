@@ -15,6 +15,7 @@ package org.inaetics.pubsub.examples.pubsub.subscriber;
 
 import org.apache.felix.dm.DependencyActivatorBase;
 import org.apache.felix.dm.DependencyManager;
+import org.inaetics.pubsub.api.MultiMessageSubscriber;
 import org.inaetics.pubsub.api.Subscriber;
 import org.osgi.framework.BundleContext;
 
@@ -32,6 +33,15 @@ public class Activator extends DependencyActivatorBase {
                 manager.createComponent()
                         .setInterface(services, props)
                         .setImplementation(DemoSubscriber.class)
+        );
+
+        services = new String[] {MultiMessageSubscriber.class.getName()};
+        props = new Properties();
+        props.put(Subscriber.PUBSUB_TOPIC, "poi1");
+        manager.add(
+                manager.createComponent()
+                        .setInterface(services, props)
+                        .setImplementation(DemoMultiMessageSubscriber.class)
         );
     }
 

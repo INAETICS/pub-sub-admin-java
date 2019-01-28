@@ -15,8 +15,8 @@ package org.inaetics.pubsub.api;
 
 public interface Publisher {
 
-    public static final String PUBSUB_TOPIC = Constants.TOPIC_KEY;
-    public static final String PUBSUB_SCOPE = Constants.SCOPE_KEY;
+    String PUBSUB_TOPIC = Constants.TOPIC_KEY;
+    String PUBSUB_SCOPE = Constants.SCOPE_KEY;
 
-    public void send(Object msg);
+    void send(Object msg);
 }
