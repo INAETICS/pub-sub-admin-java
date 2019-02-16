@@ -13,7 +13,7 @@
  *******************************************************************************/
 package org.inaetics.pubsub.api;
 
-public interface Subscriber<T extends Object> {
+public interface Subscriber<T> {
 
     String PUBSUB_TOPIC = Constants.TOPIC_KEY;
     String PUBSUB_SCOPE = Constants.SCOPE_KEY;
