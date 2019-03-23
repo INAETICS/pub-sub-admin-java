@@ -16,13 +16,7 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>biz.aQute.bnd</groupId>
-                <artifactId>bnd-maven-plugin</artifactId>
-                <version>${bnd-maven-plugin.version}</version>
-            </plugin>
-            <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>${maven-clean-plugin.version}</version>
                 <configuration>
                     <filesets>
                         <fileset>
@@ -48,7 +42,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>RELEASE</version>
+            <version>5.4.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -16,21 +16,7 @@
         <plugins>
             <plugin>
                 <groupId>biz.aQute.bnd</groupId>
-                <artifactId>bnd-maven-plugin</artifactId>
-                <version>${bnd-maven-plugin.version}</version>
-                <configuration>
-                    <bnd combine.self="override"><![CDATA[
-#Always export packages with a @Version annotation
--exportcontents: ${packages;ANNOTATED;org.osgi.annotation.versioning.Version}
-#Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
-]]>
-                    </bnd>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>biz.aQute.bnd</groupId>
                 <artifactId>bnd-export-maven-plugin</artifactId>
-                <version>${bnd-maven-plugin.version}</version>
                 <configuration>
                     <failOnChanges>false</failOnChanges>
                     <resolve>false</resolve>
@@ -49,7 +35,6 @@
             </plugin>
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
-                <version>${maven-clean-plugin.version}</version>
                 <configuration>
                     <filesets>
                         <fileset>
