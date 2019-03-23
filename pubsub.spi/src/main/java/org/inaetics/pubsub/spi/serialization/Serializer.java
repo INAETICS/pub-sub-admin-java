@@ -15,7 +15,7 @@ package org.inaetics.pubsub.spi.serialization;
 
 public interface Serializer {
 
-    public static final String SERIALIZER_NAME_KEY = "serializer";
+    String SERIALIZER_NAME_KEY = "serializer";
 
     /**
      * Serialize the input.
@@ -23,7 +23,7 @@ public interface Serializer {
      * @param obj The object to serialize
      * @return The bytes representing the serialized object
      */
-    public byte[] serialize(Object obj);
+    byte[] serialize(Object obj);
 
     /**
      * Deserialize the input.
@@ -32,5 +32,5 @@ public interface Serializer {
      * @param bytes The byte representing the object
      * @return The deserialized object
      */
-    public Object deserialize(String clazz, byte[] bytes);
+    Object deserialize(String clazz, byte[] bytes);
 }
