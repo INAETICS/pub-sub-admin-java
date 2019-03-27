@@ -12,24 +12,4 @@
     <artifactId>org.inaetics.pubsub.api</artifactId>
     <name>INAETICS PubSub API</name>
 
-    <build>
-        <plugins>
-            <plugin>
-                <artifactId>maven-clean-plugin</artifactId>
-                <configuration>
-                    <filesets>
-                        <fileset>
-                            <directory>.</directory>
-                            <includes>
-                                <include>generated</include>
-                                <include>bin</include>
-                            </includes>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                    </filesets>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
 </project>

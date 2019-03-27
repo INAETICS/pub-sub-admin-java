@@ -27,21 +27,6 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
                     </bnd>
                 </configuration>
             </plugin>
-            <plugin>
-                <artifactId>maven-clean-plugin</artifactId>
-                <configuration>
-                    <filesets>
-                        <fileset>
-                            <directory>.</directory>
-                            <includes>
-                                <include>generated</include>
-                                <include>bin</include>
-                            </includes>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                    </filesets>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
