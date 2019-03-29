@@ -17,17 +17,11 @@
   bnd.identity; id=org.apache.felix.gogo.runtime, \
   bnd.identity; id=org.apache.felix.gogo.shell, \
   bnd.identity; id=org.apache.felix.gogo.command, \
-  bnd.identity; id=org.apache.felix.metatype, \
   bnd.identity; id=org.apache.felix.configadmin, \
-  bnd.identity; id=org.apache.felix.eventadmin, \
-  bnd.identity; id=org.apache.felix.dependencymanager, \
   bnd.identity; id=org.apache.felix.dependencymanager.shell, \
   bnd.identity; id=org.apache.felix.log, \
-  bnd.identity; id=org.inaetics.pubsub.api, \
-  bnd.identity; id=org.inaetics.pubsub.spi, \
   bnd.identity; id=org.inaetics.pubsub.topologymanager, \
   bnd.identity; id=org.inaetics.pubsub.discovery.etcd, \
   bnd.identity; id=org.inaetics.pubsub.serialization.json, \
   bnd.identity; id=org.inaetics.pubsub.psa.zeromq, \
-  bnd.identity; id=org.inaetics.pubsub.examples.pubsub.common, \
   bnd.identity; id=org.inaetics.pubsub.examples.pubsub.subscriber
