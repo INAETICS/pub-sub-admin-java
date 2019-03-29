@@ -13,14 +13,6 @@
     <name>INAETICS PubSub Examples</name>
     <packaging>pom</packaging>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.inaetics.pubsub</groupId>
-            <artifactId>org.inaetics.pubsub.api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
-
     <modules>
         <module>pubsub</module>
     </modules>

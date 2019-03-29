@@ -13,8 +13,8 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.discovery.etcd;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.inaetics.pubsub.spi.discovery.AnnounceEndpointListener;
 import org.inaetics.pubsub.spi.discovery.DiscoveredEndpointListener;
 import org.inaetics.pubsub.spi.utils.Constants;

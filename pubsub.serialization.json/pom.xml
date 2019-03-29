@@ -34,23 +34,24 @@ DynamicImport-Package: *
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.api</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.spi</artifactId>
-            <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.8</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <version>2.9.8</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.dependencymanager</artifactId>
         </dependency>
     </dependencies>
 </project>

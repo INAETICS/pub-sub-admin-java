@@ -33,12 +33,14 @@ Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.api</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.spi</artifactId>
-            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.dependencymanager</artifactId>
         </dependency>
     </dependencies>
 </project>
