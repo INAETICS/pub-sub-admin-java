@@ -34,22 +34,28 @@ DynamicImport-Package: *
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.api</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.inaetics.pubsub</groupId>
             <artifactId>org.inaetics.pubsub.spi</artifactId>
-            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
-            <version>0.4.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.zeromq</groupId>
+                    <artifactId>jnacl</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
-            <groupId>org.zeromq</groupId>
+            <groupId>eu.neilalexander</groupId>
             <artifactId>jnacl</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.dependencymanager</artifactId>
         </dependency>
     </dependencies>
 </project>

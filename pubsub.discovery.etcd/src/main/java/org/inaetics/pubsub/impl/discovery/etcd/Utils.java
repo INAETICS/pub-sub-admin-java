@@ -13,9 +13,9 @@
  *******************************************************************************/
 package org.inaetics.pubsub.impl.discovery.etcd;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.codehaus.jackson.JsonNode;
 
 import java.util.Iterator;
 import java.util.Properties;
@@ -37,11 +37,11 @@ public class Utils {
         Properties result = null;
         if (node != null && node.isObject()) {
             result = new Properties();
-            for (Iterator<String> it = node.getFieldNames(); it.hasNext(); ) {
+            for (Iterator<String> it = node.fieldNames(); it.hasNext(); ) {
                 String name = it.next();
                 JsonNode val = node.get(name);
                 if (val != null && val.isTextual()) {
-                    result.put(name, val.getTextValue());
+                    result.put(name, val.textValue());
                 }
             }
         }

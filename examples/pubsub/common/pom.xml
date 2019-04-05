@@ -12,20 +12,15 @@
     <artifactId>org.inaetics.pubsub.examples.pubsub.common</artifactId>
     <name>INAETICS PubSub Examples - Pubsub Common</name>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>biz.aQute.bnd</groupId>
-                <artifactId>bnd-maven-plugin</artifactId>
-                <configuration>
-                    <bnd combine.self="override"><![CDATA[
-#Always export packages with a @Version annotation
--exportcontents: ${packages;ANNOTATED;org.osgi.annotation.versioning.Version}
-]]>
-                    </bnd>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+    <dependencies>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.annotation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.inaetics.pubsub</groupId>
+            <artifactId>org.inaetics.pubsub.api</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

@@ -12,4 +12,11 @@
     <artifactId>org.inaetics.pubsub.api</artifactId>
     <name>INAETICS PubSub API</name>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.osgi</groupId>
+            <artifactId>org.osgi.annotation</artifactId>
+        </dependency>
+    </dependencies>
+
 </project>
