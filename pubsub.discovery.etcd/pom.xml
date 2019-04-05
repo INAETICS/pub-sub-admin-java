@@ -18,7 +18,6 @@
             <plugin>
                 <groupId>biz.aQute.bnd</groupId>
                 <artifactId>bnd-maven-plugin</artifactId>
-                <version>${bnd-maven-plugin.version}</version>
                 <configuration>
                     <bnd combine.self="override"><![CDATA[
 #Always export packages with a @Version annotation
@@ -26,22 +25,6 @@
 Bundle-Activator: ${classes;IMPLEMENTS;org.osgi.framework.BundleActivator}
 ]]>
                     </bnd>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>${maven-clean-plugin.version}</version>
-                <configuration>
-                    <filesets>
-                        <fileset>
-                            <directory>.</directory>
-                            <includes>
-                                <include>generated</include>
-                                <include>bin</include>
-                            </includes>
-                            <followSymlinks>false</followSymlinks>
-                        </fileset>
-                    </filesets>
                 </configuration>
             </plugin>
         </plugins>
