@@ -19,7 +19,7 @@ import org.inaetics.pubsub.examples.pubsub.common.PointOfInterrest;
 
 public class DemoPublisher {
 
-    private volatile Publisher publisher;
+    private volatile Publisher<PointOfInterrest> publisher;
 
     private Location loc;
     private PointOfInterrest poi;

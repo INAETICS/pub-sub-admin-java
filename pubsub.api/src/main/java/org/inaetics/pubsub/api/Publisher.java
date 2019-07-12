@@ -13,10 +13,10 @@
  *******************************************************************************/
 package org.inaetics.pubsub.api;
 
-public interface Publisher {
+public interface Publisher<T> {
 
     String PUBSUB_TOPIC = Constants.TOPIC_KEY;
     String PUBSUB_SCOPE = Constants.SCOPE_KEY;
 
-    void send(Object msg);
+    void send(T msg);
 }

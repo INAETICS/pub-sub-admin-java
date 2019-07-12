@@ -43,7 +43,6 @@ public class ZmqTopicReceiver {
         private final Subscriber subscriber;
         private final MultiMessageSubscriber multiMessageSubscriber;
         private final Collection<Class<?>> receiveClasses;
-        boolean initialized = false;
 
         public SubscriberEntry(long svcId, Subscriber subscriber, Class<?> receiveClass) {
             this.svcId = svcId;
@@ -240,15 +239,6 @@ public class ZmqTopicReceiver {
                     Object msg = serializer.deserialize(msgClass.getName(), payloadMsg.getData());
                     synchronized (subscribers) {
                         for (SubscriberEntry entry : subscribers.values()) {
-                            if (!entry.initialized) {
-                                if (entry.subscriber != null) {
-                                    entry.subscriber.init();
-                                }
-                                if (entry.multiMessageSubscriber != null) {
-                                    entry.multiMessageSubscriber.init();
-                                }
-                                entry.initialized = true;
-                            }
                             for (Class<?> clazz : entry.receiveClasses) {
                                 if (msgClass.equals(clazz)) {
                                     if (entry.subscriber != null) {
