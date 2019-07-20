@@ -19,6 +19,5 @@ public interface Subscriber<T> {
     String PUBSUB_SCOPE = Constants.SCOPE_KEY;
 
     Class<T> receiveClass();
-    void init();
     void receive(T msg);
 }

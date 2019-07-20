@@ -14,11 +14,6 @@ public class DemoSubscriber implements Subscriber<Location> {
     }
 
     @Override
-    public void init() {
-        //nop
-    }
-
-    @Override
     public void receive(Location location) {
         System.out.printf("Recv location [%s, %s]\n", location.getLat(), location.getLon());
     }
