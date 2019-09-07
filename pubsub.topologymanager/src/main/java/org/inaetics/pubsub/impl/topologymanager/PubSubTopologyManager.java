@@ -322,7 +322,6 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
             if (entry != null) {
                 entry.usageCount += 1;
             } else {
-                newEntry = true;
                 entry = new TopicSenderOrReceiverEntry();
                 entry.key = key;
                 entry.scope = scope;
@@ -332,6 +331,8 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 entry.subscriberProperties = props;
                 this.sendersAndReceivers.put(key, entry);
             }
+
+            newEntry = entry.usageCount == 1;
         }
 
         if (newEntry) {
@@ -357,7 +358,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         synchronized (this.sendersAndReceivers) {
             TopicSenderOrReceiverEntry entry = this.sendersAndReceivers.get(key);
             if (entry != null) {
-                entry.usageCount -= 0;
+                entry.usageCount -= 1;
                 //note no notify needed, because the topicreceiver does not have to go away immediately
             }
         }
@@ -393,7 +394,6 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                 if (entry != null) {
                     entry.usageCount += 1;
                 } else {
-                    newEntry = true;
                     entry = new TopicSenderOrReceiverEntry();
                     entry.key = key;
                     entry.topic = topic;
@@ -402,6 +402,8 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                     entry.publisherFilter = info.getFilter();
                     this.sendersAndReceivers.put(key, entry);
                 }
+
+                newEntry = entry.usageCount == 1;
             }
         }
 
@@ -414,7 +416,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
     @Override
     public void removed(Collection<ListenerInfo> collection) {
         for (ListenerInfo info : collection) {
-            if (info.getFilter().contains("objectClass=" + Publisher.class.getName())) {
+            if (!info.getFilter().contains("objectClass=" + Publisher.class.getName())) {
                 continue;
             }
 
@@ -485,7 +487,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         synchronized (this.sendersAndReceivers) {
             synchronized (this.pubSubAdmins) {
                 for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
-                    if (entry.rematch) {
+                    if (entry.rematch && entry.usageCount > 0) {
                         double bestScore = PubSubAdmin.PUBSUB_ADMIN_NO_MATCH_SCORE;
                         long bestPsa = -1L;
                         long serializerSvcId = -1L;
