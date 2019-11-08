@@ -20,8 +20,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.inaetics.pubsub.api.Publisher;
 import org.inaetics.pubsub.api.Subscriber;
@@ -36,11 +36,10 @@ import org.osgi.framework.hooks.service.ListenerHook;
 import org.osgi.service.cm.ConfigurationException;
 import org.osgi.service.cm.ManagedService;
 import org.osgi.service.log.LogService;
-
-import javax.xml.ws.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.osgi.framework.Constants.SERVICE_ID;
-
 
 public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointListener, ManagedService {
 
@@ -72,12 +71,36 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         }
     }
 
+    private static class EndpointCreationRequest {
+        private final String scope;
+        private final String topic;
+        private final Properties topicProperties;
+        private final long selectedPsaSvcId;
+        private final long selectedSerializerSvcId;
+        private final boolean sender;
+        private final TopicSenderOrReceiverEntry topicSenderOrReceiverEntry;
+
+        private Properties endpoint;
+
+        private EndpointCreationRequest(String scope, String topic, Properties topicProperties, long selectedPsaSvcId, long selectedSerializerSvcId, boolean sender, TopicSenderOrReceiverEntry topicSenderOrReceiverEntry) {
+            this.scope = scope;
+            this.topic = topic;
+            this.topicProperties = topicProperties;
+            this.selectedPsaSvcId = selectedPsaSvcId;
+            this.selectedSerializerSvcId = selectedSerializerSvcId;
+            this.sender = sender;
+            this.topicSenderOrReceiverEntry = topicSenderOrReceiverEntry;
+        }
+    }
+
     private class DiscoveredEndpointEntry {
         public String uuid = null;
         public long selectedPsaSvcId = -1L; // -1L, indicates no selected psa
         public int usageCount = 0; //note that discovered endpoints can be found multiple times by different pubsub discovery components
         public Properties endpoint = null;
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PubSubTopologyManager.class);
 
     public final static String SERVICE_PID = PubSubTopologyManager.class.getName();
 
@@ -94,40 +117,80 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
 
     private final Map<String, DiscoveredEndpointEntry> discoveredEndpoints = new HashMap<>();
 
+    private final AtomicLong lastUpdateSignal = new AtomicLong(0);
+    private final AtomicBoolean active = new AtomicBoolean(false);
+
     private final Thread psaHandlingThread = new Thread(new Runnable() {
         @Override
         public void run() {
-            while (!Thread.interrupted()) {
-                psaHandling();
+            long updateStart;
+            LOGGER.info("Started configuration loop.");
+            while (active.get()) {
+                do {
+                    updateStart = System.nanoTime();
+                    psaHandling();
+                } while (updateStart < lastUpdateSignal.get());
+
+                final Thread currentThread = Thread.currentThread();
                 try {
-                    Thread me = Thread.currentThread();
-                    synchronized (me) {
-                        me.wait(PSA_UPDATE_DELAY * 1000);
+                    LOGGER.trace("Waiting for configuration signal...");
+                    synchronized (currentThread) {
+                        currentThread.wait(PSA_UPDATE_DELAY * 1000);
                     }
                 } catch (InterruptedException e) {
+                    if (active.get()) {
+                        LOGGER.warn("Current thread got interrupted while waiting for configuration signals", e);
+                    } else {
+                        LOGGER.info("Termination of PubSubTopologyManager initiated, terminating configuration loop.");
+                    }
+                    // Restore interrupted flag allowing outer-loop condition to
+                    Thread.currentThread().interrupt();
                     break;
                 }
             }
+            LOGGER.info("Completed configuration loop.");
         }
     }, "PubSub TopologyManager");
 
     public void start() {
-        psaHandlingThread.start();
+        if (active.compareAndSet(false, true)) {
+            LOGGER.info("Starting configuration loop in order to activate PubSubAdmin functionality...");
+            psaHandlingThread.start();
+        } else {
+            LOGGER.warn("Configuration loop already active!");
+        }
     }
 
     public void stop() {
-        try {
-            psaHandlingThread.interrupt();
-            psaHandlingThread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (active.compareAndSet(true, false)) {
+            LOGGER.info("Stopping configuration loop in order to deactivate PubSubAdmin functionality...");
+            try {
+                psaHandlingThread.interrupt();
+                psaHandlingThread.join();
+            } catch (InterruptedException e) {
+                LOGGER.warn("Current thread got interrupted while waiting for {} to end", e);
+                Thread.currentThread().interrupt();
+            }
+        } else {
+            LOGGER.warn("Configuration loop already deactivated!");
         }
     }
 
     public void psaHandling() {
+        LOGGER.trace("Starting PubSubAdmin configuration loop...");
         this.teardownTopicSenderAndReceivers();
         this.setupTopicSendersAndReceivers();
         this.findPsaForEndpoint();
+        LOGGER.trace("Completed PubSubAdmin configuration loop.");
+    }
+
+    private void signalUpdate() {
+        LOGGER.trace("Signalling PubSubAdmin configuration loop...");
+        lastUpdateSignal.set(System.nanoTime());
+        synchronized (psaHandlingThread) {
+            psaHandlingThread.notifyAll();
+        }
+        LOGGER.trace("Signalled PubSubAdmin configuration loop.");
     }
 
     public void adminAdded(ServiceReference<PubSubAdmin> adminRef, PubSubAdmin admin) {
@@ -143,7 +206,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
             }
         }
 
-        synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
+        signalUpdate();
 
     }
 
@@ -219,7 +282,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
             }
         }
         if (newEntry) {
-            synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
+            signalUpdate();
         }
     }
 
@@ -336,7 +399,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
         }
 
         if (newEntry) {
-            synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
+            signalUpdate();
         }
     }
 
@@ -409,7 +472,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
 
 
         if (newEntry) {
-            synchronized (psaHandlingThread) { psaHandlingThread.notifyAll(); }
+            signalUpdate();
         }
     }
 
@@ -484,6 +547,7 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
     private void setupTopicSendersAndReceivers() {
         List<Properties> revokes = new ArrayList<>();
         List<Properties> announces = new ArrayList<>();
+        List<EndpointCreationRequest> endpointCreationRequests = new ArrayList<>();
         synchronized (this.sendersAndReceivers) {
             synchronized (this.pubSubAdmins) {
                 for (TopicSenderOrReceiverEntry entry : this.sendersAndReceivers.values()) {
@@ -524,13 +588,38 @@ public class PubSubTopologyManager implements ListenerHook, DiscoveredEndpointLi
                             entry.selectedSerializerSvcId = serializerSvcId;
                             PubSubAdmin admin = this.pubSubAdmins.get(bestPsa);
                             if (entry.isForSender()) {
-                                entry.endpoint = admin.setupTopicSender(entry.scope, entry.topic, entry.topicProperties, entry.selectedSerializerSvcId);
+                                endpointCreationRequests.add(new EndpointCreationRequest(entry.scope, entry.topic, entry.topicProperties, entry.selectedPsaSvcId, entry.selectedSerializerSvcId, true, entry));
                             } else {
-                                entry.endpoint = admin.setupTopicReceiver(entry.scope, entry.topic, entry.topicProperties, entry.selectedSerializerSvcId);
+                                endpointCreationRequests.add(new EndpointCreationRequest(entry.scope, entry.topic, entry.topicProperties, entry.selectedPsaSvcId, entry.selectedSerializerSvcId, false, entry));
                             }
                             announces.add(entry.endpoint);
                         }
                     }
+                }
+            }
+        }
+
+        // Create Sender/Receivers while *not* holding the sendersAndReceivers mutex
+        synchronized (this.pubSubAdmins) {
+            for (EndpointCreationRequest endpointCreationRequest : endpointCreationRequests) {
+                PubSubAdmin admin = pubSubAdmins.get(endpointCreationRequest.selectedPsaSvcId);
+                if (admin == null) {
+                    LOGGER.warn("Unable to materialize EndpointCreationRequest as PubSubAdmin with id {} no longer present", endpointCreationRequest.selectedPsaSvcId);
+                    continue;
+                }
+                if (endpointCreationRequest.sender) {
+                    endpointCreationRequest.endpoint = admin.setupTopicSender(endpointCreationRequest.scope, endpointCreationRequest.topic, endpointCreationRequest.topicProperties, endpointCreationRequest.selectedSerializerSvcId);
+                } else {
+                    endpointCreationRequest.endpoint = admin.setupTopicReceiver(endpointCreationRequest.scope, endpointCreationRequest.topic, endpointCreationRequest.topicProperties, endpointCreationRequest.selectedSerializerSvcId);
+                }
+            }
+        }
+
+        // Completing the sendersAndReceivers administration by inserting the endpoint information retrieved in the creation process.
+        synchronized (this.sendersAndReceivers) {
+            for (EndpointCreationRequest endpointCreationRequest : endpointCreationRequests) {
+                if (endpointCreationRequest.endpoint != null) {
+                    endpointCreationRequest.topicSenderOrReceiverEntry.endpoint = endpointCreationRequest.endpoint;
                 }
             }
         }
